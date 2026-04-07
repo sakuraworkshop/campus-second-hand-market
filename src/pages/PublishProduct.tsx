@@ -5,11 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, X, ImagePlus } from "lucide-react";
+import { Upload, X, ImagePlus, Brain, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { getMe } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const PublishProduct = () => {
   const [images, setImages] = useState<string[]>([]);
@@ -24,6 +25,14 @@ const PublishProduct = () => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
+
+  // AI 帮写相关状态
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [aiInput, setAiInput] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiGeneratedDescription, setAiGeneratedDescription] = useState("");
+  const [aiEstimatedPrice, setAiEstimatedPrice] = useState("");
+  const [aiError, setAiError] = useState("");
 
   useEffect(() => {
     // 获取分类列表
@@ -44,6 +53,45 @@ const PublishProduct = () => {
       "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=200&h=200&fit=crop",
     ];
     setImages([...images, mockImgs[images.length % mockImgs.length]]);
+  };
+
+  // 实际 API 调用：AI 生成商品介绍和价格估计
+  const generateAiContent = async () => {
+    if (!aiInput.trim()) {
+      setAiError("请输入商品描述或上传图片");
+      return;
+    }
+
+    setAiLoading(true);
+    setAiError("");
+
+    try {
+      // 调用后端 API
+      const response = await api.generateProduct({
+        description: aiInput,
+        images: images.length > 0 ? images : undefined
+      });
+
+      setAiGeneratedDescription(response.description);
+      setAiEstimatedPrice(response.price);
+    } catch (error) {
+      console.error('AI 生成失败:', error);
+      setAiError('AI 生成失败，请重试');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // 应用 AI 生成的内容到表单
+  const applyAiContent = () => {
+    setTitle(aiInput); // 使用用户输入给 AI 的描述作为商品名称
+    // 过滤掉包含分类、成色和价格的行
+    const filteredDescription = aiGeneratedDescription.split('\n').filter(line => !line.includes('分类') && !line.includes('成色') && !line.includes('价格')).join('\n');
+    setDescription(filteredDescription);
+    // 自动填写价格
+    setPrice(aiEstimatedPrice);
+    
+    setAiDialogOpen(false);
   };
 
   const handleSubmit = async () => {
@@ -213,7 +261,69 @@ const PublishProduct = () => {
 
             {/* Description */}
             <div className="space-y-2">
-              <Label htmlFor="description">商品描述 <span className="text-destructive">*</span></Label>
+              <div className="flex justify-between items-center">
+                <Label htmlFor="description">商品描述 <span className="text-destructive">*</span></Label>
+                <Dialog open={aiDialogOpen} onOpenChange={setAiDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="secondary" size="sm" className="gap-1">
+                      <Brain className="h-4 w-4" />
+                      AI 帮写
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 text-primary" />
+                        AI 帮写商品介绍
+                      </DialogTitle>
+                      <DialogDescription>
+                        输入商品描述或上传图片，AI 会帮你生成完整且简练的商品介绍，并根据市场情况估计价格。
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="ai-input">商品描述或图片</Label>
+                        <Textarea
+                          id="ai-input"
+                          placeholder="描述商品的品牌、型号、使用情况等，如：iPad Air 5 256G 99新，使用3个月"
+                          rows={3}
+                          value={aiInput}
+                          onChange={(e) => setAiInput(e.target.value)}
+                        />
+                      </div>
+                      <Button
+                        className="w-full"
+                        onClick={generateAiContent}
+                        disabled={aiLoading}
+                      >
+                        {aiLoading ? "生成中..." : "开始生成"}
+                      </Button>
+                      {aiError && (
+                        <div className="text-destructive text-sm">{aiError}</div>
+                      )}
+                      {aiGeneratedDescription && (
+                        <div className="space-y-4 pt-4 border-t border-border">
+                          <div className="space-y-2">
+                            <Label>AI 生成的商品描述</Label>
+                            <Textarea
+                              readOnly
+                              value={aiGeneratedDescription.split('\n').filter(line => !line.includes('分类') && !line.includes('成色') && !line.includes('价格')).join('\n')}
+                              rows={6}
+                            />
+                          </div>
+                          <Button
+                            className="w-full gap-2"
+                            onClick={applyAiContent}
+                          >
+                            <Sparkles className="h-4 w-4" />
+                            应用到表单
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
               <Textarea
                 id="description"
                 placeholder="描述商品的使用情况、购买时间、转手原因等，让买家更了解你的宝贝~"

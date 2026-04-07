@@ -514,5 +514,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+
+  // AI 生成商品描述和价格估计
+  generateProduct: (data: { description: string; images?: string[] }) =>
+    request<{
+      description: string;
+      price: string;
+    }>('/api/ai/generate-product', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
