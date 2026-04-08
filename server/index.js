@@ -1,5 +1,17 @@
 import "./src/main.js";
 import "./src/main.js";
+import express from 'express';
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import multer from "multer";
+import cors from "cors";
+import crypto from "crypto";
+// 引入 JSON 数据库模块
+import { jsonDb, seedIfEmpty } from "./src/db/json.js";
+
+// 初始化数据库适配器
+const db = createJsonDbAdapter(jsonDb);
+
 
 /*
  * server/index.js 仅作为启动入口保留。
