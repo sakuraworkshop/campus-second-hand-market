@@ -1,0 +1,52 @@
+name: 自动部署到 Sealos
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 写入 kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.SEALOS_KUBECONFIG }}" > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: 安装 kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: 开始部署到 Sealos
+        run: |
+          kubectl apply -f - <<EOF
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: my-app
+            namespace: ns-phdx94j1
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: my-app
+            template:
+              metadata:
+                labels:
+                  app: my-app
+              spec:
+                containers:
+                - name: my-app
+                  image: github.com/${{ github.repository }}:${{ github.sha }}
+                  imagePullPolicy: Always
+                  ports:
+                  - containerPort: 3000
+          EOF
+
+          kubectl expose deployment my-app --port=80 --target-port=3000 --namespace=ns-phdx94j1 2>/dev/null || true
+
+          kubectl annotate service my-app sealos.run/ingress=auto --namespace=ns-phdx94j1 || true
