@@ -1,5 +1,4 @@
 import "./src/main.js";
-import "./src/main.js";
 import express from 'express';
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -2867,28 +2866,4 @@ function scheduleGenerateRecommendations() {
 
 // 启动定时任务
 scheduleGenerateRecommendations();
-
-// 启动服务器
-async function startServer() {
-  try {
-    // 初始化数据库
-    await initDb();
-  } catch (error) {
-    console.error('数据库初始化失败:', error.message);
-    // 切换到本地 JSON 存储
-    db = createJsonDbAdapter(jsonDb);
-    useJsonDb = true;
-    // 初始化本地 JSON 数据
-    seedIfEmpty();
-    console.log('本地 JSON 存储初始化成功');
-  }
-  
-  // 启动服务器
-  app.listen(PORT, () => {
-    console.log(`API server listening on http://localhost:${PORT}`);
-  });
-}
-
-// 启动服务器
-startServer();
 

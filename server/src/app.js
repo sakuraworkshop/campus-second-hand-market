@@ -1335,6 +1335,11 @@ app.post('/api/ai/generate-product', async (req, res) => {
     prompt += `要求：\n1. 生成的描述要专业、详细，突出商品的特点和优势\n2. 描述结构清晰，包括商品特点、使用情况、转手原因、交易方式等\n3. 价格估计要合理，基于市场情况和商品状况\n4. 自动识别商品的分类和成色，并在描述中明确体现\n5. 输出格式：\n   - 分类：商品分类\n   - 成色：商品成色\n   - 描述：商品描述\n   - 价格估计：¥XXX\n\n请严格按照上述格式输出，不要添加任何其他内容。`;
 
     try {
+      // 检查科大讯飞 API 配置是否完整
+      if (!xfAppId || !xfApiKey || !xfApiSecret) {
+        throw new Error('科大讯飞 API 配置不完整');
+      }
+
       // 生成 HMAC 签名
       const date = new Date();
       const timestamp = Math.floor(date.getTime() / 1000);
