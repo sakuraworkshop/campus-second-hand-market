@@ -1,41 +1,36 @@
-# 多阶段构建
+# 多阶段构建（前端 Vite + 后端 Express，同一进程托管 dist）
 
-# 第一阶段：构建前端
-FROM node:18-alpine AS frontend
-
+FROM node:18-alpine AS build
 WORKDIR /app
 
-# 复制 package.json 和 package-lock.json
-COPY package*.json ./
+# 先装依赖以获得更好的缓存命中
+COPY package.json package-lock.json ./
+RUN npm ci
 
-# 安装依赖
-RUN npm install
-
-# 复制前端代码
+# 再复制源码并构建前端产物
 COPY . .
-
-# 构建前端
 RUN npm run build
 
-# 第二阶段：构建后端
-FROM node:18-alpine AS backend
-
+FROM node:18-alpine AS runner
 WORKDIR /app
 
-# 复制 package.json 和 package-lock.json
-COPY package*.json ./
+ENV NODE_ENV=production
+ENV PORT=4000
 
-# 安装依赖
-RUN npm install --production
+# 仅安装生产依赖（运行后端所需）
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
-# 复制后端代码
+# 复制后端代码（含 schema.sql 等运行时文件）
 COPY server/ ./server/
 
-# 复制前端构建产物
-COPY --from=frontend /app/dist/ ./dist/
+# 复制前端构建产物（由后端托管）
+COPY --from=build /app/dist/ ./dist/
 
-# 暴露端口
 EXPOSE 4000
 
-# 启动应用
+# 健康检查：Sealos 可用它判断容器是否就绪
+HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
+  CMD sh -c "wget -qO- http://127.0.0.1:${PORT}/api/health >/dev/null 2>&1 || exit 1"
+
 CMD ["node", "server/index.js"]

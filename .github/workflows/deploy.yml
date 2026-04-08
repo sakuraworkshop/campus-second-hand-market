@@ -1,0 +1,48 @@
+name: 构建并部署到 Sealos
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 登录 GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 构建并推送 Docker 镜像
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/${{ github.repository }}:latest
+
+      - name: 安装 Sealos CLI
+        run: |
+          curl -sfL https://raw.githubusercontent.com/labring/sealos/main/scripts/install.sh | sh
+          sealos version
+
+      - name: 登录 Sealos
+        run: |
+          sealos login sealos.cloud -u ${{ secrets.SEALOS_USERNAME }} -p ${{ secrets.SEALOS_TOKEN }}
+
+      - name: 部署到 Sealos
+        run: |
+          sealos run ghcr.io/${{ github.repository_owner }}/${{ github.repository }}:latest \
+            --name my-fullstack-app \
+            --port 4000:4000 \
+            --env NODE_ENV=production \
+            --env PORT=4000
