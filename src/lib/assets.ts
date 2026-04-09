@@ -1,7 +1,13 @@
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "http://localhost:4000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, "") || "";
 
 function getApiOrigin() {
+  if (!API_BASE) {
+    // 未配置 API_BASE 时，使用当前站点同源地址
+    if (typeof window !== "undefined" && window.location?.origin) {
+      return window.location.origin;
+    }
+    return "";
+  }
   try {
     return new URL(API_BASE).origin;
   } catch {
@@ -36,6 +42,6 @@ export function resolveAssetUrl(input?: string | null): string {
 
   // 规范化相对路径
   const path = v.startsWith("/") ? v : `/${v}`;
-  return `${API_BASE}${path}`;
+  return API_BASE ? `${API_BASE}${path}` : path;
 }
 

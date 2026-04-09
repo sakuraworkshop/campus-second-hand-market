@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ const FavoriteManagement = () => {
   const [favorites, setFavorites] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const list = await api.adminListFavorites({
@@ -32,11 +32,11 @@ const FavoriteManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [productId, userId]);
 
   useEffect(() => {
     refresh();
-  }, [productId, userId]);
+  }, [refresh]);
 
   return (
     <div className="space-y-4">

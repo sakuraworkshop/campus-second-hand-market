@@ -1,14 +1,16 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Heart, MessageCircle, User, Menu, X, Plus, Sun, Moon, Package, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { api } from "@/lib/api";
 import { clearAuth, getMe, getToken, type Me } from "@/lib/auth";
 import { useTheme } from "@/hooks/useTheme";
 
 const Header = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [unreadCount, setUnreadCount] = useState(0);
@@ -47,11 +49,27 @@ const Header = () => {
 
   const isActive = (path: string) => location.pathname === path;
   const isLoggedIn = !!user && !!getToken();
+  const qFromUrl = useMemo(() => searchParams.get("q") || "", [searchParams]);
+
+  useEffect(() => {
+    // 在商品页保持输入框与 URL 查询同步，避免“看起来搜索失效”
+    if (location.pathname === "/products") {
+      setSearchQuery(qFromUrl);
+    }
+  }, [location.pathname, qFromUrl]);
 
   const handleLogout = () => {
     clearAuth();
     setUser(null);
     setUnreadCount(0);
+    setMobileMenuOpen(false);
+  };
+
+  const doSearch = () => {
+    const q = searchQuery.trim();
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    navigate(`/products${params.toString() ? `?${params.toString()}` : ""}`);
     setMobileMenuOpen(false);
   };
 
@@ -87,10 +105,20 @@ const Header = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="搜索闲置好物..."
-              className="pl-9 h-9 bg-muted/50"
+              className="pl-9 pr-20 h-9 bg-muted/50"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") doSearch();
+              }}
             />
+            <Button
+              size="sm"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2 text-xs"
+              onClick={doSearch}
+            >
+              搜索
+            </Button>
           </div>
         </div>
 

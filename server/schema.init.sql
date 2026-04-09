@@ -238,6 +238,18 @@ CREATE TABLE `ai_prompts` (
   INDEX `idx_ai_prompts_updated_at` (`updated_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 默认 AI 提示词：搜索相关性 Top1（支持变量 {{query}}、{{candidates}}）
+INSERT INTO `ai_prompts` (`id`, `name`, `scene`, `content`, `enabled`, `created_at`, `updated_at`) VALUES
+(
+  'aip_search_top_product_default',
+  '搜索Top1推荐',
+  'search_top_product',
+  '你是校园二手平台搜索排序助手。\n用户搜索词：{{query}}\n请在候选商品中只选出最相关的一件商品。\n优先级：语义相关性 > 标题精确匹配 > 品类匹配 > 成色与价格合理性 > 热度(浏览/收藏) > 时间新近。\n严格输出 JSON，格式如下：\n{\"productId\": 123, \"reason\": \"一句话说明\", \"reply\": \"给用户的一句推荐解释\"}\n不要输出任何额外文本。\n候选商品：{{candidates}}',
+  1,
+  NOW(),
+  NOW()
+);
+
 -- 商品标签
 CREATE TABLE `product_tags` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,

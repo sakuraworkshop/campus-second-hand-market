@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { PropsWithChildren } from "react";
-import { ThemeProviderContext, type ResolvedTheme, type ThemeMode } from "@/hooks/useTheme";
+import { ThemeProviderContext, type ResolvedTheme, type ThemeMode } from "@/hooks/theme-context";
 
 const STORAGE_KEY = "theme";
 

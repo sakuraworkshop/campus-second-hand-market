@@ -1,11 +1,20 @@
 import { getToken, clearAuth, setMe, type Me } from "./auth";
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "http://localhost:4000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, "") || "";
+
+function resolveApiUrl(path: string) {
+  // 默认空基址：直接请求 /api/*，由同源服务或 Vite 代理处理
+  if (!API_BASE) return path;
+
+  // 允许显式配置为 /api，避免拼接成 /api/api/*
+  if (API_BASE === "/api" && path.startsWith("/api/")) return path;
+
+  return `${API_BASE}${path}`;
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = getToken();
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(resolveApiUrl(path), {
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -37,7 +46,7 @@ async function uploadViaBackend(file: File, folder = "products") {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("folder", folder);
-  const res = await fetch(`${API_BASE}/api/oss/upload`, {
+  const res = await fetch(resolveApiUrl("/api/oss/upload"), {
     method: "POST",
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -61,7 +70,7 @@ async function uploadBannerViaAdmin(file: File) {
   const token = getToken();
   const formData = new FormData();
   formData.append("file", file);
-  const res = await fetch(`${API_BASE}/api/admin/banners/upload`, {
+  const res = await fetch(resolveApiUrl("/api/admin/banners/upload"), {
     method: "POST",
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -795,6 +804,96 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  // AI 生成商品描述和价格估计（流式）
+  generateProductStream: async (
+    data: { description: string; images?: string[] },
+    handlers: {
+      onDelta?: (text: string) => void;
+      onDone?: (result: { description: string; price: string }) => void;
+      onError?: (message: string) => void;
+    } = {}
+  ) => {
+    const token = getToken();
+    const res = await fetch(resolveApiUrl("/api/ai/generate-product/stream"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok || !res.body) {
+      let message = `请求失败 (${res.status})`;
+      try {
+        const err = await res.json();
+        message = String(err?.error || err?.message || message);
+      } catch {
+        // ignore
+      }
+      handlers.onError?.(message);
+      throw new Error(message);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+
+    const handleSseEvent = (rawEvent: string) => {
+      const lines = rawEvent.split("\n").map((x) => x.trim()).filter(Boolean);
+      if (!lines.length) return;
+      const eventLine = lines.find((x) => x.startsWith("event:"));
+      const dataLine = lines.find((x) => x.startsWith("data:"));
+      const eventName = eventLine ? eventLine.slice("event:".length).trim() : "message";
+      const payloadText = dataLine ? dataLine.slice("data:".length).trim() : "{}";
+
+      try {
+        const payload = JSON.parse(payloadText || "{}");
+        if (eventName === "delta") {
+          handlers.onDelta?.(String(payload?.text || ""));
+          return;
+        }
+        if (eventName === "done") {
+          handlers.onDone?.({
+            description: String(payload?.description || ""),
+            price: String(payload?.price || ""),
+          });
+          return;
+        }
+        if (eventName === "error") {
+          const message = String(payload?.error || "AI 生成失败，请重试");
+          handlers.onError?.(message);
+          throw new Error(message);
+        }
+      } catch (err) {
+        if (err instanceof Error) throw err;
+      }
+    };
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const chunks = buffer.split("\n\n");
+      buffer = chunks.pop() || "";
+      for (const chunk of chunks) {
+        handleSseEvent(chunk);
+      }
+    }
+
+    if (buffer.trim()) handleSseEvent(buffer);
+  },
+
+  // AI 搜索：推荐相关性最高的单个商品
+  aiSearchTopProduct: (data: { query: string }) =>
+    request<{ productId: number | null; reason?: string; aiReply?: string; promptName?: string }>(
+      "/api/ai/search-top-product",
+      {
+      method: "POST",
+      body: JSON.stringify(data),
+      }
+    ),
 
   // OSS 直传（S3-compatible 通用）
   ossConfig: () =>

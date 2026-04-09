@@ -103,3 +103,24 @@
     font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
   }
 }
+
+@keyframes page-route-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-route-enter {
+  animation: page-route-fade-up 220ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-route-enter {
+    animation: none;
+  }
+}

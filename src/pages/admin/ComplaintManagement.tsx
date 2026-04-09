@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,7 @@ const ComplaintManagement = () => {
     return type;
   };
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const list = await api.adminListComplaints({
@@ -56,11 +56,11 @@ const ComplaintManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, typeFilter]);
 
   useEffect(() => {
     refresh();
-  }, [statusFilter, typeFilter]);
+  }, [refresh]);
 
   const handleProcess = async () => {
     if (!selectedComplaint || !result.trim()) return;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ const LogManagement = () => {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const list = await api.adminListLogs({
@@ -36,11 +36,11 @@ const LogManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [actionFilter, moduleFilter, startDate, endDate]);
 
   useEffect(() => {
     refresh();
-  }, [actionFilter, moduleFilter, startDate, endDate]);
+  }, [refresh]);
 
   return (
     <div className="space-y-4">

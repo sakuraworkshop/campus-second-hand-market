@@ -37,6 +37,7 @@ const PublishProduct = () => {
   const [aiGeneratedDescription, setAiGeneratedDescription] = useState("");
   const [aiEstimatedPrice, setAiEstimatedPrice] = useState("");
   const [aiError, setAiError] = useState("");
+  const [aiStreaming, setAiStreaming] = useState(false);
 
   useEffect(() => {
     // 获取分类列表
@@ -83,22 +84,38 @@ const PublishProduct = () => {
     }
 
     setAiLoading(true);
+    setAiStreaming(true);
     setAiError("");
+    setAiGeneratedDescription("");
+    setAiEstimatedPrice("");
 
     try {
-      // 调用后端 API
-      const response = await api.generateProduct({
-        description: aiInput,
-        images: images.length > 0 ? images : undefined
-      });
-
-      setAiGeneratedDescription(response.description);
-      setAiEstimatedPrice(response.price);
+      await api.generateProductStream(
+        {
+          description: aiInput,
+          images: images.length > 0 ? images : undefined,
+        },
+        {
+          onDelta: (text) => {
+            setAiGeneratedDescription((prev) => prev + text);
+          },
+          onDone: (result) => {
+            setAiGeneratedDescription(result.description);
+            setAiEstimatedPrice(result.price);
+          },
+          onError: (message) => {
+            setAiError(message || "AI 生成失败，请重试");
+          },
+        }
+      );
     } catch (error) {
-      console.error('AI 生成失败:', error);
-      setAiError('AI 生成失败，请重试');
+      console.error("AI 生成失败:", error);
+      if (!aiGeneratedDescription) {
+        setAiError("AI 生成失败，请重试");
+      }
     } finally {
       setAiLoading(false);
+      setAiStreaming(false);
     }
   };
 
@@ -334,11 +351,20 @@ const PublishProduct = () => {
                         <div className="space-y-4 pt-4 border-t border-border">
                           <div className="space-y-2">
                             <Label>AI 生成的商品描述</Label>
-                            <Textarea
-                              readOnly
-                              value={aiGeneratedDescription.split('\n').filter(line => !line.includes('分类') && !line.includes('成色') && !line.includes('价格')).join('\n')}
-                              rows={6}
-                            />
+                            <div className="relative">
+                              <Textarea
+                                readOnly
+                                value={aiGeneratedDescription
+                                  .split("\n")
+                                  .filter((line) => !line.includes("分类") && !line.includes("成色") && !line.includes("价格"))
+                                  .join("\n")}
+                                rows={6}
+                                className={aiStreaming ? "transition-opacity duration-300 opacity-95" : ""}
+                              />
+                              {aiStreaming && (
+                                <span className="absolute right-3 bottom-3 inline-block h-4 w-[2px] bg-primary animate-pulse" />
+                              )}
+                            </div>
                           </div>
                           <Button
                             className="w-full gap-2"

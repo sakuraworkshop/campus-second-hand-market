@@ -282,6 +282,7 @@ app.use(
 app.use(
   "/api",
   createAiRouter({
+    db,
     crypto,
     xfWsUrl,
     xfDomain,

@@ -1,21 +1,28 @@
 import Header from "@/features/public/components/Header";
 import Footer from "@/features/public/components/Footer";
 import ProductCard from "@/features/public/components/ProductCard";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SlidersHorizontal } from "lucide-react";
+import { Bot, Sparkles, SlidersHorizontal } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Product } from "@/types";
 import { normalizeProductImages } from "@/lib/product-images";
+import { useSearchParams } from "react-router-dom";
 
 const Products = () => {
+  const [searchParams] = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("latest");
   const [conditionFilter, setConditionFilter] = useState<string>("all");
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
+  const [aiTopProductId, setAiTopProductId] = useState<string | null>(null);
+  const [aiTopReason, setAiTopReason] = useState("");
+  const [aiReply, setAiReply] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const searchQuery = (searchParams.get("q") || "").trim();
 
   useEffect(() => {
     api
@@ -60,16 +67,68 @@ const Products = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredProducts = products
-    .filter((p) => p.status === "已上架")
-    .filter((p) => selectedCategory === "all" || p.category === selectedCategory)
-    .filter((p) => conditionFilter === "all" || p.condition === conditionFilter)
-    .sort((a, b) => {
-      if (sortBy === "price-low") return a.price - b.price;
-      if (sortBy === "price-high") return b.price - a.price;
-      if (sortBy === "popular") return b.views - a.views;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  const filteredProducts = useMemo(() => {
+    return products
+      .filter((p) => p.status === "已上架")
+      .filter((p) => selectedCategory === "all" || p.category === selectedCategory)
+      .filter((p) => conditionFilter === "all" || p.condition === conditionFilter)
+      .sort((a, b) => {
+        if (sortBy === "price-low") return a.price - b.price;
+        if (sortBy === "price-high") return b.price - a.price;
+        if (sortBy === "popular") return b.views - a.views;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+  }, [products, selectedCategory, conditionFilter, sortBy]);
+
+  const searchedProducts = useMemo(() => {
+    if (!searchQuery) return filteredProducts;
+    const q = searchQuery.toLowerCase();
+    return filteredProducts.filter((p) => {
+      const title = p.title.toLowerCase();
+      const desc = p.description.toLowerCase();
+      const category = (p.category || "").toLowerCase();
+      return title.includes(q) || desc.includes(q) || category.includes(q);
     });
+  }, [filteredProducts, searchQuery]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!searchQuery) {
+      setAiTopProductId(null);
+      setAiTopReason("");
+      setAiReply("");
+      return;
+    }
+
+    setAiLoading(true);
+    api
+      .aiSearchTopProduct({ query: searchQuery })
+      .then((res) => {
+        if (cancelled) return;
+        setAiTopProductId(res.productId ? String(res.productId) : null);
+        setAiTopReason(res.reason || "");
+        setAiReply(res.aiReply || "");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAiTopProductId(null);
+        setAiTopReason("");
+        setAiReply("");
+      })
+      .finally(() => {
+        if (!cancelled) setAiLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [searchQuery]);
+
+  const aiTopProduct = useMemo(() => {
+    if (!aiTopProductId) return null;
+    return searchedProducts.find((p) => p.id === aiTopProductId) || null;
+  }, [searchedProducts, aiTopProductId]);
+  const waitAiFirst = Boolean(searchQuery) && aiLoading;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -129,23 +188,76 @@ const Products = () => {
             </div>
           </div>
 
-          {/* Results */}
-          <p className="text-sm text-muted-foreground mb-3">共 {filteredProducts.length} 件商品</p>
-          {loading ? (
-            <div className="text-center py-16 text-muted-foreground">
-              加载中...
-            </div>
+          {/* AI Search Section */}
+          {searchQuery && (
+            <section className="mb-4 rounded-xl border border-primary/25 bg-gradient-to-br from-primary/10 via-background to-background p-3 md:p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <h2 className="text-sm font-semibold flex items-center gap-1.5">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  AI 搜索结果
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  关键词：<span className="text-foreground">{searchQuery}</span>
+                </p>
+              </div>
+
+              {aiLoading && (
+                <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Bot className="h-3.5 w-3.5" />
+                  AI 正在分析并挑选相关性最高的商品...
+                </div>
+              )}
+
+              {!aiLoading && aiTopProduct && (
+                <>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    已为你推荐 1 个最相关商品{aiTopReason ? `（${aiTopReason}）` : ""}
+                  </p>
+                  {aiReply && (
+                    <div className="mb-3 rounded-lg border border-primary/20 bg-background/80 px-3 py-2 text-xs leading-5">
+                      <span className="inline-flex items-center gap-1 mr-1 text-primary font-medium">
+                        <Bot className="h-3.5 w-3.5" />
+                        AI 回复：
+                      </span>
+                      {aiReply}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+                    <ProductCard product={aiTopProduct} />
+                  </div>
+                </>
+              )}
+
+              {!aiLoading && !aiTopProduct && (
+                <div className="text-xs text-muted-foreground">AI 暂未返回可用推荐，已回退到普通搜索结果。</div>
+              )}
+            </section>
+          )}
+
+          {waitAiFirst ? (
+            <div className="text-center py-16 text-muted-foreground">加载中...</div>
           ) : (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-                {filteredProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
-              {filteredProducts.length === 0 && (
+              <p className="text-sm text-muted-foreground mb-3">
+                共 {searchQuery ? searchedProducts.length : filteredProducts.length} 件商品
+              </p>
+              {loading ? (
                 <div className="text-center py-16 text-muted-foreground">
-                  暂无符合条件的商品 🔍
+                  加载中...
                 </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+                    {(searchQuery ? searchedProducts.filter((p) => p.id !== aiTopProductId) : filteredProducts).map((product) => (
+                      <ProductCard key={product.id} product={product} />
+                    ))}
+                  </div>
+                  {(searchQuery ? searchedProducts.length === 0 : filteredProducts.length === 0) && (
+                    <div className="text-center py-16 text-muted-foreground">
+                      暂无符合条件的商品 🔍
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, MapPin, Trash2, Star } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Address } from "@/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,18 +23,17 @@ const Addresses = () => {
     detail: "",
   });
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     const list = await api.listAddresses();
     setAddresses(list as Address[]);
-  };
+  }, []);
 
   useEffect(() => {
     setLoading(true);
     refresh()
       .catch(() => setAddresses([]))
       .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refresh]);
 
   return (
     <div className="min-h-screen flex flex-col">
