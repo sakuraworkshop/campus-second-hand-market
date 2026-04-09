@@ -123,7 +123,7 @@ export function createRecommendRouter({ db, authRequired, getDb }) {
          FROM products p 
          LEFT JOIN users u ON p.owner_id = u.id 
          WHERE p.id IN (${productIds.map(() => "?").join(", ")}) 
-         AND p.status <> 'deleted'`,
+         AND p.status = 'approved'`,
           productIds,
         );
 
@@ -144,7 +144,7 @@ export function createRecommendRouter({ db, authRequired, getDb }) {
           `SELECT p.*, u.name as owner_name 
          FROM products p 
          LEFT JOIN users u ON p.owner_id = u.id 
-         WHERE p.status <> 'deleted' 
+         WHERE p.status = 'approved' 
          ORDER BY p.views DESC, p.favorites DESC LIMIT 10`,
         );
 
@@ -196,7 +196,7 @@ export function createRecommendRouter({ db, authRequired, getDb }) {
           });
 
           // 获取所有商品及其标签
-          const products = await activeDb.query('SELECT id FROM products WHERE status <> "deleted"');
+          const products = await activeDb.query('SELECT id FROM products WHERE status = "approved"');
 
           const recommendations = [];
 

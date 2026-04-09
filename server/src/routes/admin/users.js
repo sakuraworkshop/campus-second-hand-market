@@ -1,5 +1,15 @@
 export function applyAdminUserRoutes(router, { db, adminRequired, hashPassword }) {
   // --- Admin: 用户管理 ---
+  function isValidCNPhone(phone) {
+    return /^1\d{10}$/.test(String(phone || "").trim());
+  }
+
+  function clampLimit(v, { min = 1, max = 10000, fallback = 200 } = {}) {
+    const n = Number(v);
+    const x = Number.isFinite(n) ? n : fallback;
+    return Math.min(Math.max(x, min), max);
+  }
+
   router.get("/admin/users", adminRequired, (req, res) => {
     const sql = `
     SELECT u.*, 
@@ -31,7 +41,7 @@ export function applyAdminUserRoutes(router, { db, adminRequired, hashPassword }
 
   router.get("/admin/users/:userId/logs", adminRequired, (req, res) => {
     const userId = Number(req.params.userId);
-    const limit = Math.min(Math.max(Number(req.query.limit || 50) || 50, 1), 200);
+    const limit = clampLimit(req.query.limit, { fallback: 200, max: 10000 });
     if (!Number.isFinite(userId) || userId <= 0) return res.status(400).json({ message: "无效的 userId" });
     db.query("SELECT * FROM logs WHERE user_id = ? ORDER BY created_at DESC LIMIT ?", [userId, limit])
       .then((list) => res.json({ list }))
@@ -43,7 +53,7 @@ export function applyAdminUserRoutes(router, { db, adminRequired, hashPassword }
 
   router.get("/admin/users/:userId/complaints", adminRequired, (req, res) => {
     const userId = Number(req.params.userId);
-    const limit = Math.min(Math.max(Number(req.query.limit || 50) || 50, 1), 200);
+    const limit = clampLimit(req.query.limit, { fallback: 200, max: 10000 });
     if (!Number.isFinite(userId) || userId <= 0) return res.status(400).json({ message: "无效的 userId" });
     db.query("SELECT * FROM complaints WHERE user_id = ? ORDER BY created_at DESC LIMIT ?", [userId, limit])
       .then((list) => res.json({ list }))
@@ -55,7 +65,7 @@ export function applyAdminUserRoutes(router, { db, adminRequired, hashPassword }
 
   router.get("/admin/users/:userId/evaluations", adminRequired, (req, res) => {
     const userId = Number(req.params.userId);
-    const limit = Math.min(Math.max(Number(req.query.limit || 50) || 50, 1), 200);
+    const limit = clampLimit(req.query.limit, { fallback: 200, max: 10000 });
     if (!Number.isFinite(userId) || userId <= 0) return res.status(400).json({ message: "无效的 userId" });
     db.query(
       "SELECT * FROM evaluations WHERE user_id = ? OR target_id = ? ORDER BY created_at DESC LIMIT ?",
@@ -64,6 +74,41 @@ export function applyAdminUserRoutes(router, { db, adminRequired, hashPassword }
       .then((list) => res.json({ list }))
       .catch((error) => {
         console.error("获取用户评价失败:", error);
+        return res.status(500).json({ message: "服务器内部错误" });
+      });
+  });
+
+  router.get("/admin/users/:userId/chats", adminRequired, (req, res) => {
+    const userId = Number(req.params.userId);
+    const limit = clampLimit(req.query.limit, { fallback: 200, max: 10000 });
+    if (!Number.isFinite(userId) || userId <= 0) return res.status(400).json({ message: "无效的 userId" });
+
+    const sql = `
+      SELECT
+        msg.id,
+        msg.conversation_id,
+        msg.sender_id,
+        msg.type,
+        msg.content,
+        msg.created_at,
+        c.product_id,
+        u_other.id as other_id,
+        u_other.nickname as other_nickname,
+        u_other.avatar as other_avatar,
+        p.title as product_title
+      FROM chat_messages msg
+      JOIN chat_conversations c ON c.id = msg.conversation_id
+      JOIN users u_other ON u_other.id = (CASE WHEN c.user1_id = ? THEN c.user2_id ELSE c.user1_id END)
+      LEFT JOIN products p ON p.id = c.product_id
+      WHERE c.user1_id = ? OR c.user2_id = ?
+      ORDER BY msg.created_at DESC, msg.id DESC
+      LIMIT ?
+    `;
+
+    db.query(sql, [userId, userId, userId, limit])
+      .then((list) => res.json({ list }))
+      .catch((error) => {
+        console.error("获取用户聊天记录失败:", error);
         return res.status(500).json({ message: "服务器内部错误" });
       });
   });
@@ -96,11 +141,46 @@ export function applyAdminUserRoutes(router, { db, adminRequired, hashPassword }
     }
   });
 
+  router.patch("/admin/users/:userId/phone", adminRequired, async (req, res) => {
+    const userId = Number(req.params.userId);
+    const { phone } = req.body ?? {};
+    const p = String(phone || "").trim();
+    if (!Number.isFinite(userId) || userId <= 0) return res.status(400).json({ message: "无效的 userId" });
+    if (!p) return res.status(400).json({ message: "phone 为必填" });
+    if (!isValidCNPhone(p)) return res.status(400).json({ message: "手机号格式不正确" });
+
+    try {
+      const user = await db.getById("users", userId);
+      if (!user) return res.status(404).json({ message: "用户不存在" });
+
+      const exists = await db.query("SELECT id FROM users WHERE phone = ? AND id <> ? LIMIT 1", [p, userId]);
+      if (exists?.[0]) return res.status(409).json({ message: "该手机号已被占用" });
+
+      await db.update("users", userId, { phone: p });
+      await db.insert("logs", {
+        id: `log_${Date.now()}`,
+        user_id: req.auth.uid,
+        action: "修改用户手机号",
+        module: "用户管理",
+        content: `用户ID: ${userId}, 昵称: ${user.nickname || "-"}, phone: ${p}`,
+        ip: req.ip || "unknown",
+        created_at: new Date().toISOString(),
+      });
+      return res.json({ message: "ok" });
+    } catch (error) {
+      console.error("修改用户手机号失败:", error);
+      return res.status(500).json({ message: "服务器内部错误" });
+    }
+  });
+
   router.get("/admin/users/:userId", adminRequired, (req, res) => {
     const userId = Number(req.params.userId);
     if (!Number.isFinite(userId) || userId <= 0) {
       return res.status(400).json({ message: "无效的 userId" });
     }
+
+    const limitProducts = clampLimit(req.query.limitProducts, { fallback: 10000, max: 10000 });
+    const limitOrders = clampLimit(req.query.limitOrders, { fallback: 10000, max: 10000 });
 
     const userSql = `
       SELECT u.*,
@@ -116,7 +196,7 @@ export function applyAdminUserRoutes(router, { db, adminRequired, hashPassword }
       FROM products p
       WHERE p.owner_id = ?
       ORDER BY p.created_at DESC
-      LIMIT 20
+      LIMIT ?
     `;
     const ordersSql = `
       SELECT o.*,
@@ -130,10 +210,14 @@ export function applyAdminUserRoutes(router, { db, adminRequired, hashPassword }
       LEFT JOIN users u2 ON o.seller_id = u2.id
       WHERE o.buyer_id = ? OR o.seller_id = ?
       ORDER BY o.created_at DESC
-      LIMIT 20
+      LIMIT ?
     `;
 
-    Promise.all([db.query(userSql, [userId]), db.query(productsSql, [userId]), db.query(ordersSql, [userId, userId])])
+    Promise.all([
+      db.query(userSql, [userId]),
+      db.query(productsSql, [userId, limitProducts]),
+      db.query(ordersSql, [userId, userId, limitOrders]),
+    ])
       .then(([userRows, products, orders]) => {
         const u = userRows?.[0] || null;
         if (!u) return res.status(404).json({ message: "用户不存在" });

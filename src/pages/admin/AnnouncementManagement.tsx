@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2, Pin, PinOff } from "lucide-react";
 import { api } from "@/lib/api";
+import { useUtc8Time } from "@/hooks/use-utc8-time";
 
 interface AnnouncementItem {
   id: string;
@@ -23,6 +24,7 @@ interface AnnouncementItem {
 }
 
 const AnnouncementManagement = () => {
+  const { formatDateTime } = useUtc8Time();
   const [list, setList] = useState<AnnouncementItem[]>([]);
   const [editItem, setEditItem] = useState<AnnouncementItem | null>(null);
   const [isNew, setIsNew] = useState(false);
@@ -123,7 +125,7 @@ const AnnouncementManagement = () => {
                   <TableCell>
                     {item.isTop && <Badge variant="outline" className="text-primary border-primary">置顶</Badge>}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{item.createdAt}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{formatDateTime(item.createdAt)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toggleTop(item.id)} title={item.isTop ? "取消置顶" : "置顶"}>

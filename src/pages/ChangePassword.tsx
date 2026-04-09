@@ -8,6 +8,7 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { clearAuth } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const ChangePassword = () => {
   const navigate = useNavigate();
@@ -17,16 +18,16 @@ const ChangePassword = () => {
   const [loading, setLoading] = useState(false);
 
   const onSubmit = async () => {
-    if (newPassword !== confirmPassword) return alert("两次新密码不一致");
+    if (newPassword !== confirmPassword) return toast.error("两次新密码不一致");
     if (!oldPassword || !newPassword) return;
     setLoading(true);
     try {
       await api.updatePassword({ oldPassword, newPassword });
-      alert("密码修改成功，请重新登录");
+      toast.success("密码修改成功，请重新登录");
       clearAuth();
       navigate("/login", { replace: true });
     } catch (e: any) {
-      alert(e?.message || "修改失败");
+      toast.error(e?.message || "修改失败");
     } finally {
       setLoading(false);
     }

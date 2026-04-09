@@ -94,7 +94,7 @@ const AdminLayout = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-muted/30">
+    <div className="min-h-screen md:h-screen md:overflow-hidden flex bg-muted/30">
       {/* Sidebar */}
       {sidebarOpen && (
         <button
@@ -107,7 +107,7 @@ const AdminLayout = () => {
       <aside
         className={cn(
           "bg-card flex flex-col transition-all duration-200 overflow-hidden",
-          "fixed inset-y-0 left-0 z-40 md:static md:z-auto md:shrink-0 md:border-r md:border-border",
+          "fixed inset-y-0 left-0 z-40 md:z-auto md:shrink-0 md:border-r md:border-border md:sticky md:top-0 md:h-screen",
           sidebarOpen ? "w-56" : "w-0 md:w-0",
           !sidebarOpen && "md:border-r-0"
         )}
@@ -115,8 +115,8 @@ const AdminLayout = () => {
       >
         <div className="h-14 flex items-center justify-center px-4 border-b border-border shrink-0">
           <Link to="/admin" className="flex w-full items-center justify-center" onClick={closeSidebarOnMobile}>
-            <img src="/logos/logo_black.svg" alt="校园二手" className="h-6 w-auto dark:hidden" loading="eager" decoding="async" />
-            <img src="/logos/logo_white.svg" alt="校园二手" className="h-6 w-auto hidden dark:block" loading="eager" decoding="async" />
+            <img src="/logos/logo_dashboard_black.svg" alt="校园二手管理端" className="h-5 w-auto dark:hidden" loading="eager" decoding="async" />
+            <img src="/logos/logo_dashboard_white.svg" alt="校园二手管理端" className="h-5 w-auto hidden dark:block" loading="eager" decoding="async" />
           </Link>
         </div>
 
@@ -157,8 +157,8 @@ const AdminLayout = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0">
-        <div className="h-14 border-b border-border bg-card/80 backdrop-blur-md flex items-center px-4 md:px-6 shrink-0 justify-between gap-3">
+      <main className="flex-1 flex flex-col min-w-0 md:overflow-hidden">
+        <div className="h-14 border-b border-border bg-card/80 backdrop-blur-md flex items-center px-4 md:px-6 shrink-0 justify-between gap-3 md:sticky md:top-0 md:z-20">
           <div className="flex items-center gap-2 min-w-0">
             <Button
               variant="ghost"

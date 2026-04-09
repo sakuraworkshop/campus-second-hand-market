@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Megaphone } from "lucide-react";
+import { useUtc8Time } from "@/hooks/use-utc8-time";
 
 type Announcement = {
   id: string;
@@ -15,6 +16,7 @@ type Announcement = {
 };
 
 const Announcements = () => {
+  const { formatDateTime } = useUtc8Time();
   const [list, setList] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -63,7 +65,7 @@ const Announcements = () => {
               <CardContent className="space-y-2">
                 <p className="text-sm text-foreground whitespace-pre-wrap">{item.content}</p>
                 <p className="text-xs text-muted-foreground">
-                  发布时间：{new Date(item.created_at).toLocaleString()}
+                  发布时间：{formatDateTime(item.created_at)}
                 </p>
               </CardContent>
             </Card>

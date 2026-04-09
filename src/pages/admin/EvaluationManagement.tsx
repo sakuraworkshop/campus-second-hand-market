@@ -8,8 +8,10 @@ import {
 } from "@/components/ui/table";
 import { Search } from "lucide-react";
 import { api } from "@/lib/api";
+import { useUtc8Time } from "@/hooks/use-utc8-time";
 
 const EvaluationManagement = () => {
+  const { formatDateTime } = useUtc8Time();
   const [search, setSearch] = useState("");
   const [evaluations, setEvaluations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -90,7 +92,7 @@ const EvaluationManagement = () => {
                     <TableCell>{evaluation.order_no}</TableCell>
                     <TableCell>{renderRating(evaluation.rating)}</TableCell>
                     <TableCell className="max-w-[300px] truncate">{evaluation.content}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{new Date(evaluation.created_at).toLocaleString()}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{formatDateTime(evaluation.created_at)}</TableCell>
                   </TableRow>
                 ))
               )}

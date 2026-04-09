@@ -100,17 +100,55 @@ export function buildUserController(deps) {
       }
     },
 
-    listConversations(_req, res) {
-      return res.json(service.listConversations());
+    async startConversation(req, res) {
+      try {
+        const { targetUserId, productId } = req.body ?? {};
+        const result = await service.startConversation(req.auth.uid, Number(targetUserId), productId != null ? Number(productId) : null);
+        return send(res, result);
+      } catch (error) {
+        console.error("创建会话失败:", error);
+        return res.status(500).json({ message: "服务器内部错误" });
+      }
     },
 
-    listMessages(req, res) {
-      return res.json(service.listMessages(req.auth.uid));
+    async listConversations(req, res) {
+      try {
+        return res.json(await service.listConversations(req.auth.uid));
+      } catch (error) {
+        console.error("获取会话列表失败:", error);
+        return res.status(500).json({ message: "服务器内部错误" });
+      }
     },
 
-    sendMessage(req, res) {
-      const { content, type } = req.body ?? {};
-      return send(res, service.sendMessage(req.auth.uid, content, type));
+    async listMessages(req, res) {
+      try {
+        const convId = Number(req.params.id);
+        return res.json(await service.listMessages(req.auth.uid, convId));
+      } catch (error) {
+        console.error("获取聊天消息失败:", error);
+        if (error && typeof error === "object" && "status" in error) {
+          const status = Number(error.status);
+          const message = error.message || "请求失败";
+          if (Number.isFinite(status)) return res.status(status).json({ message });
+        }
+        return res.status(500).json({ message: "服务器内部错误" });
+      }
+    },
+
+    async sendMessage(req, res) {
+      try {
+        const convId = Number(req.params.id);
+        const { content, type } = req.body ?? {};
+        return send(res, await service.sendMessage(req.auth.uid, convId, content, type));
+      } catch (error) {
+        console.error("发送消息失败:", error);
+        if (error && typeof error === "object" && "status" in error) {
+          const status = Number(error.status);
+          const message = error.message || "请求失败";
+          if (Number.isFinite(status)) return res.status(status).json({ message });
+        }
+        return res.status(500).json({ message: "服务器内部错误" });
+      }
     },
 
     async sendChangePhoneCode(req, res) {

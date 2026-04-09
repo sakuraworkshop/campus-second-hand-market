@@ -1,4 +1,5 @@
 import { Route } from "react-router-dom";
+import RequireAuth from "@/components/auth/RequireAuth";
 import {
   AnnouncementsPage,
   AddressesPage,
@@ -32,18 +33,18 @@ export const publicRoutes = (
     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
     <Route path="/register" element={<RegisterPage />} />
     <Route path="/announcements" element={<AnnouncementsPage />} />
-    <Route path="/publish" element={<PublishProductPage />} />
-    <Route path="/profile" element={<ProfilePage />} />
-    <Route path="/my-products" element={<MyProductsPage />} />
-    <Route path="/favorites" element={<FavoritesPage />} />
-    <Route path="/addresses" element={<AddressesPage />} />
-    <Route path="/change-password" element={<ChangePasswordPage />} />
-    <Route path="/change-phone" element={<ChangePhonePage />} />
-    <Route path="/messages" element={<MessagesPage />} />
-    <Route path="/chat/:id" element={<ChatPage />} />
-    <Route path="/orders" element={<OrdersPage />} />
-    <Route path="/order/:id" element={<OrderDetailPage />} />
-    <Route path="/order/:id/evaluate" element={<OrderEvaluatePage />} />
+    <Route path="/publish" element={<RequireAuth><PublishProductPage /></RequireAuth>} />
+    <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
+    <Route path="/my-products" element={<RequireAuth><MyProductsPage /></RequireAuth>} />
+    <Route path="/favorites" element={<RequireAuth><FavoritesPage /></RequireAuth>} />
+    <Route path="/addresses" element={<RequireAuth><AddressesPage /></RequireAuth>} />
+    <Route path="/change-password" element={<RequireAuth><ChangePasswordPage /></RequireAuth>} />
+    <Route path="/change-phone" element={<RequireAuth><ChangePhonePage /></RequireAuth>} />
+    <Route path="/messages" element={<RequireAuth><MessagesPage /></RequireAuth>} />
+    <Route path="/chat/:id" element={<RequireAuth><ChatPage /></RequireAuth>} />
+    <Route path="/orders" element={<RequireAuth><OrdersPage /></RequireAuth>} />
+    <Route path="/order/:id" element={<RequireAuth><OrderDetailPage /></RequireAuth>} />
+    <Route path="/order/:id/evaluate" element={<RequireAuth><OrderEvaluatePage /></RequireAuth>} />
     <Route path="/test-new-features" element={<TestNewFeaturesPage />} />
     <Route path="*" element={<NotFoundPage />} />
   </>

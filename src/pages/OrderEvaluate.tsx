@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { getMe } from "@/lib/auth";
+import { toast } from "sonner";
 
 function Stars({ value, onChange, disabled }: { value: number; onChange: (v: number) => void; disabled?: boolean }) {
   return (
@@ -79,20 +80,20 @@ export default function OrderEvaluate() {
   const onSubmit = async () => {
     if (!canSubmit) return;
     const c = content.trim();
-    if (!rating || rating < 1 || rating > 5) return alert("请先选择评分（1-5星）");
-    if (!c) return alert("请填写评价内容");
-    if (c.length < 3) return alert("评价内容至少 3 个字");
-    if (c.length > 500) return alert("评价内容最多 500 字");
+    if (!rating || rating < 1 || rating > 5) return toast.error("请先选择评分（1-5星）");
+    if (!c) return toast.error("请填写评价内容");
+    if (c.length < 3) return toast.error("评价内容至少 3 个字");
+    if (c.length > 500) return toast.error("评价内容最多 500 字");
 
     setSubmitting(true);
     try {
       await api.createEvaluation(orderId, { rating, content: c, target_type: targetType });
       const e = await api.getMyEvaluation(orderId);
       setExisting(e);
-      alert("评价成功");
+      toast.success("评价成功");
       nav(`/order/${orderId}`);
     } catch (err: any) {
-      alert(err?.message || "评价失败，请重试");
+      toast.error(err?.message || "评价失败，请重试");
     } finally {
       setSubmitting(false);
     }

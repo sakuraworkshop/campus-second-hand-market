@@ -5,14 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Settings,
   MapPin,
   Package,
   Heart,
   ShoppingCart,
-  Lock,
   LogOut,
   ArrowUpDown,
   Trash2,
@@ -26,12 +25,27 @@ import { clearAuth } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Address, Order, Product } from "@/types";
 import { resolveAssetUrl } from "@/lib/assets";
+import { normalizeProductImages } from "@/lib/product-images";
+import { toast } from "sonner";
+import { useUtc8Time } from "@/hooks/use-utc8-time";
 
 const Profile = () => {
+  const { formatDateTime } = useUtc8Time();
   const navigate = useNavigate();
+  const location = useLocation();
   const [me, setMeState] = useState<Me | null>(null);
   const [saving, setSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -55,6 +69,7 @@ const Profile = () => {
   const [sellerOrders, setSellerOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderStatusFilter, setOrderStatusFilter] = useState("全部");
+  const [orderRoleFilter, setOrderRoleFilter] = useState<"全部" | "买到" | "卖出">("全部");
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [addressesLoading, setAddressesLoading] = useState(false);
@@ -76,6 +91,8 @@ const Profile = () => {
   const [sending, setSending] = useState(false);
   const [phoneLoading, setPhoneLoading] = useState(false);
   const [coolDownUntil, setCoolDownUntil] = useState<number>(0);
+  const [pendingDeleteProductId, setPendingDeleteProductId] = useState<number | null>(null);
+  const [pendingDeleteAddressId, setPendingDeleteAddressId] = useState<number | null>(null);
 
   useEffect(() => {
     api
@@ -184,7 +201,7 @@ const Profile = () => {
         .map((p: any) => ({
           id: Number(p.id),
           title: p.title,
-          images: p.images || (p.image_url ? [p.image_url] : []),
+          images: normalizeProductImages(p.images, p.image_url),
           price: Number(p.price || 0),
           views: p.views || 0,
           favorites: p.favorites || 0,
@@ -216,7 +233,7 @@ const Profile = () => {
           price: Number(p.price || 0),
           originalPrice: p.originalPrice ? Number(p.originalPrice) : undefined,
           condition: p.condition || "轻微使用",
-          images: p.images || (p.image_url ? [p.image_url] : []),
+          images: normalizeProductImages(p.images, p.image_url),
           category: p.category || "其他",
           categoryId: p.category_id || "",
           seller: {
@@ -252,7 +269,7 @@ const Profile = () => {
         product: {
           id: o.product?.id?.toString() || "",
           title: o.product?.title || o.title || "",
-          images: o.product?.images || (o.product?.image_url ? [o.product.image_url] : []),
+          images: normalizeProductImages(o.product?.images, o.product?.image_url),
           price: o.product?.price || o.price || 0,
           description: "",
           originalPrice: 0,
@@ -326,12 +343,36 @@ const Profile = () => {
     return orders.filter((o) => o.status === statusMap[orderStatusFilter]);
   };
 
+  const defaultTab = useMemo(() => {
+    const q = new URLSearchParams(location.search);
+    const tab = q.get("tab");
+    const allowed = new Set(["info", "my-products", "favorites", "orders", "addresses"]);
+    if (tab && allowed.has(tab)) return tab;
+    return "info";
+  }, [location.search]);
+
+  const mergedOrders = useMemo(() => {
+    type X = Order & { _role: "buyer" | "seller" };
+    const list: X[] = [
+      ...buyerOrders.map((o) => ({ ...(o as Order), _role: "buyer" as const })),
+      ...sellerOrders.map((o) => ({ ...(o as Order), _role: "seller" as const })),
+    ];
+    const seen = new Set<string>();
+    const uniq = list.filter((o) => {
+      const k = String(o.id);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    return uniq.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [buyerOrders, sellerOrders]);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1">
         <div className="container max-w-3xl py-4 md:py-6">
-          <Tabs defaultValue="info">
+          <Tabs defaultValue={defaultTab}>
             <TabsList className="w-full justify-start mb-6 flex-wrap h-auto">
               <TabsTrigger value="info" className="gap-1.5">
                 <Settings className="h-4 w-4" /> 个人信息
@@ -344,22 +385,12 @@ const Profile = () => {
                 <Heart className="h-4 w-4" /> 我的收藏
                 <span className="text-xs text-muted-foreground">({stats ? stats.favorites : "-"})</span>
               </TabsTrigger>
-              <TabsTrigger value="bought" className="gap-1.5" onClick={ensureOrdersLoaded}>
-                <ShoppingCart className="h-4 w-4" /> 我买到的
-                <span className="text-xs text-muted-foreground">({stats ? stats.bought : "-"})</span>
-              </TabsTrigger>
-              <TabsTrigger value="sold" className="gap-1.5" onClick={ensureOrdersLoaded}>
-                <ShoppingCart className="h-4 w-4" /> 我卖出的
-                <span className="text-xs text-muted-foreground">({stats ? stats.sold : "-"})</span>
+              <TabsTrigger value="orders" className="gap-1.5" onClick={ensureOrdersLoaded}>
+                <ShoppingCart className="h-4 w-4" /> 我的订单
+                <span className="text-xs text-muted-foreground">({stats ? stats.trades : "-"})</span>
               </TabsTrigger>
               <TabsTrigger value="addresses" className="gap-1.5" onClick={ensureAddressesLoaded}>
                 <MapPin className="h-4 w-4" /> 收货地址
-              </TabsTrigger>
-              <TabsTrigger value="change-password" className="gap-1.5">
-                <Lock className="h-4 w-4" /> 修改密码
-              </TabsTrigger>
-              <TabsTrigger value="change-phone" className="gap-1.5">
-                <Settings className="h-4 w-4" /> 更换手机号
               </TabsTrigger>
             </TabsList>
 
@@ -412,10 +443,10 @@ const Profile = () => {
                               bio: user.bio,
                             });
                             await api.me().then((u) => setMeState(u as unknown as Me));
-                            alert("头像已更新");
+                            toast.success("头像已更新");
                           } catch (err: any) {
                             console.error(err);
-                            alert(err?.message || "头像上传失败");
+                            toast.error(err?.message || "头像上传失败");
                           } finally {
                             setAvatarUploading(false);
                             e.target.value = "";
@@ -450,14 +481,10 @@ const Profile = () => {
               {/* Edit Form */}
               <div className="rounded-xl border border-border bg-card p-6 space-y-4">
                 <h3 className="font-semibold text-foreground">编辑资料</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="nickname">昵称</Label>
                     <Input id="nickname" value={user?.nickname || ""} onChange={(e) => setMeState((prev) => (prev ? { ...prev, nickname: e.target.value } : prev))} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">手机号</Label>
-                    <Input id="phone" value={user?.phone || ""} disabled />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -476,9 +503,9 @@ const Profile = () => {
                         bio: user.bio,
                       });
                       await refreshStats();
-                      alert("保存成功");
+                      toast.success("保存成功");
                     } catch (e: any) {
-                      alert(e?.message || "保存失败");
+                      toast.error(e?.message || "保存失败");
                     } finally {
                       setSaving(false);
                     }
@@ -486,6 +513,151 @@ const Profile = () => {
                 >
                   保存修改
                 </Button>
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-6 mt-6 space-y-4">
+                <h3 className="font-semibold text-foreground">安全设置</h3>
+
+                <div className="flex flex-wrap gap-2">
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline">修改密码</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>修改密码</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="oldPassword">原密码</Label>
+                          <Input
+                            id="oldPassword"
+                            type="password"
+                            placeholder="请输入原密码"
+                            value={oldPassword}
+                            onChange={(e) => setOldPassword(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="newPassword">新密码</Label>
+                          <Input
+                            id="newPassword"
+                            type="password"
+                            placeholder="至少 6 位"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="confirmPassword">确认新密码</Label>
+                          <Input
+                            id="confirmPassword"
+                            type="password"
+                            placeholder="请再次输入新密码"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                          />
+                        </div>
+                        <Button
+                          className="w-full"
+                          disabled={passwordLoading}
+                          onClick={async () => {
+                            if (newPassword !== confirmPassword) return toast.error("两次新密码不一致");
+                            if (!oldPassword || !newPassword) return;
+                            setPasswordLoading(true);
+                            try {
+                              await api.updatePassword({ oldPassword, newPassword });
+                              toast.success("密码修改成功，请重新登录");
+                              clearAuth();
+                              navigate("/login", { replace: true });
+                            } catch (e: any) {
+                              toast.error(e?.message || "修改失败");
+                            } finally {
+                              setPasswordLoading(false);
+                            }
+                          }}
+                        >
+                          {passwordLoading ? "提交中..." : "确认修改"}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline">更换手机号</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>更换手机号</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="newPhone">新手机号</Label>
+                          <Input
+                            id="newPhone"
+                            type="tel"
+                            placeholder="请输入新手机号"
+                            value={newPhone}
+                            onChange={(e) => setNewPhone(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="code">验证码</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              id="code"
+                              placeholder="请输入验证码"
+                              value={code}
+                              onChange={(e) => setCode(e.target.value)}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={sending || !newPhone.trim() || Date.now() < coolDownUntil}
+                              onClick={async () => {
+                                const p = newPhone.trim();
+                                if (!p) return;
+                                setSending(true);
+                                try {
+                                  await api.sendChangePhoneCode({ newPhone: p });
+                                  toast.success("验证码已发送");
+                                  setCoolDownUntil(Date.now() + 60 * 1000);
+                                } catch (e: any) {
+                                  toast.error(e?.message || "发送失败");
+                                } finally {
+                                  setSending(false);
+                                }
+                              }}
+                            >
+                              {coolDownText || (sending ? "发送中..." : "发送验证码")}
+                            </Button>
+                          </div>
+                        </div>
+                        <Button
+                          className="w-full"
+                          disabled={phoneLoading || !newPhone.trim() || !code.trim()}
+                          onClick={async () => {
+                            setPhoneLoading(true);
+                            try {
+                              await api.confirmChangePhone({ newPhone: newPhone.trim(), code: code.trim() });
+                              toast.success("手机号已更新");
+                              setNewPhone("");
+                              setCode("");
+                              await api.me().then((u) => setMeState(u as unknown as Me));
+                            } catch (e: any) {
+                              toast.error(e?.message || "更换失败");
+                            } finally {
+                              setPhoneLoading(false);
+                            }
+                          }}
+                        >
+                          {phoneLoading ? "提交中..." : "确认更换"}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </div>
 
               <div className="rounded-xl border border-border bg-card p-6 mt-6">
@@ -560,7 +732,7 @@ const Profile = () => {
                             <Heart className="h-3 w-3" />
                             {product.favorites}
                           </span>
-                          <span>{product.createdAt}</span>
+                          <span>{formatDateTime(product.createdAt)}</span>
                         </div>
                       </div>
                       <div className="flex flex-col gap-1 shrink-0">
@@ -580,7 +752,7 @@ const Profile = () => {
                               );
                               await refreshStats();
                             } catch (e: any) {
-                              alert(e?.message || "操作失败");
+                              toast.error(e?.message || "操作失败");
                             }
                           }}
                         >
@@ -591,16 +763,7 @@ const Profile = () => {
                           size="icon"
                           className="h-8 w-8 text-destructive"
                           title="删除"
-                          onClick={async () => {
-                            if (!confirm("确认删除该商品？")) return;
-                            try {
-                              await api.deleteProduct?.(product.id);
-                              setMyProducts((list) => list.filter((p) => p.id !== product.id));
-                              await refreshStats();
-                            } catch (e: any) {
-                              alert(e?.message || "删除失败");
-                            }
-                          }}
+                          onClick={() => setPendingDeleteProductId(product.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -638,31 +801,23 @@ const Profile = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="bought">
-              <h2 className="text-lg font-bold text-foreground mb-4">我买到的</h2>
-              <div className="flex gap-1 mb-3 flex-wrap">
-                {orderStatuses.map((s) => (
-                  <Button
-                    key={s}
-                    variant={orderStatusFilter === s ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setOrderStatusFilter(s)}
-                  >
-                    {s}
-                  </Button>
-                ))}
+            <TabsContent value="orders">
+              <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                <h2 className="text-lg font-bold text-foreground">我的订单</h2>
+                <div className="flex gap-1 flex-wrap">
+                  {(["全部", "买到", "卖出"] as const).map((x) => (
+                    <Button
+                      key={x}
+                      variant={orderRoleFilter === x ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setOrderRoleFilter(x)}
+                    >
+                      {x}
+                    </Button>
+                  ))}
+                </div>
               </div>
-              <OrderList
-                orders={filterOrdersByStatus(buyerOrders)}
-                loading={ordersLoading}
-                statusText={orderStatusText}
-                statusVariant={orderStatusVariant}
-                onOpen={(id) => navigate(`/order/${id}`)}
-              />
-            </TabsContent>
 
-            <TabsContent value="sold">
-              <h2 className="text-lg font-bold text-foreground mb-4">我卖出的</h2>
               <div className="flex gap-1 mb-3 flex-wrap">
                 {orderStatuses.map((s) => (
                   <Button
@@ -675,8 +830,13 @@ const Profile = () => {
                   </Button>
                 ))}
               </div>
+
               <OrderList
-                orders={filterOrdersByStatus(sellerOrders)}
+                orders={filterOrdersByStatus(
+                  (orderRoleFilter === "全部"
+                    ? mergedOrders
+                    : mergedOrders.filter((o: any) => (orderRoleFilter === "买到" ? o._role === "buyer" : o._role === "seller"))) as unknown as Order[]
+                )}
                 loading={ordersLoading}
                 statusText={orderStatusText}
                 statusVariant={orderStatusVariant}
@@ -767,7 +927,7 @@ const Profile = () => {
                             setAddrForm({ contact: "", phone: "", campus: "东校区", building: "", detail: "" });
                             await refreshAddresses();
                           } catch (e: any) {
-                            alert(e?.message || "保存失败");
+                            toast.error(e?.message || "保存失败");
                           }
                         }}
                       >
@@ -831,11 +991,7 @@ const Profile = () => {
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 text-destructive"
-                            onClick={async () => {
-                              if (!confirm("确认删除该地址？")) return;
-                              await api.deleteAddress(Number(addr.id));
-                              await refreshAddresses();
-                            }}
+                            onClick={() => setPendingDeleteAddressId(Number(addr.id))}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -846,125 +1002,76 @@ const Profile = () => {
                 )}
               </div>
             </TabsContent>
-
-            <TabsContent value="change-password">
-              <h2 className="text-lg font-bold text-foreground mb-4">修改密码</h2>
-              <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="oldPassword">原密码</Label>
-                  <Input
-                    id="oldPassword"
-                    type="password"
-                    placeholder="请输入原密码"
-                    value={oldPassword}
-                    onChange={(e) => setOldPassword(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="newPassword">新密码</Label>
-                  <Input
-                    id="newPassword"
-                    type="password"
-                    placeholder="8位以上，包含数字和字母"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">确认新密码</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="请再次输入新密码"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                  />
-                </div>
-                <Button
-                  className="w-full"
-                  disabled={passwordLoading}
-                  onClick={async () => {
-                    if (newPassword !== confirmPassword) return alert("两次新密码不一致");
-                    if (!oldPassword || !newPassword) return;
-                    setPasswordLoading(true);
-                    try {
-                      await api.updatePassword({ oldPassword, newPassword });
-                      alert("密码修改成功，请重新登录");
-                      clearAuth();
-                      navigate("/login", { replace: true });
-                    } catch (e: any) {
-                      alert(e?.message || "修改失败");
-                    } finally {
-                      setPasswordLoading(false);
-                    }
-                  }}
-                >
-                  {passwordLoading ? "提交中..." : "确认修改"}
-                </Button>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="change-phone">
-              <h2 className="text-lg font-bold text-foreground mb-4">更换手机号</h2>
-              <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="newPhone">新手机号</Label>
-                  <Input
-                    id="newPhone"
-                    type="tel"
-                    placeholder="请输入新手机号"
-                    value={newPhone}
-                    onChange={(e) => setNewPhone(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="code">验证码</Label>
-                  <div className="flex gap-2">
-                    <Input id="code" placeholder="请输入验证码" value={code} onChange={(e) => setCode(e.target.value)} />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={sending || !newPhone.trim() || Date.now() < coolDownUntil}
-                      onClick={async () => {
-                        const p = newPhone.trim();
-                        if (!p) return;
-                        setSending(true);
-                        try {
-                          await api.sendChangePhoneCode({ newPhone: p });
-                          alert("验证码已发送");
-                          setCoolDownUntil(Date.now() + 60 * 1000);
-                        } catch (e: any) {
-                          alert(e?.message || "发送失败");
-                        } finally {
-                          setSending(false);
-                        }
-                      }}
-                    >
-                      {coolDownText || (sending ? "发送中..." : "发送验证码")}
-                    </Button>
-                  </div>
-                </div>
-                <Button
-                  className="w-full"
-                  disabled={phoneLoading || !newPhone.trim() || !code.trim()}
-                  onClick={async () => {
-                    setPhoneLoading(true);
-                    try {
-                      await api.confirmChangePhone({ newPhone: newPhone.trim(), code: code.trim() });
-                      alert("手机号已更新");
-                      await refreshStats();
-                    } catch (e: any) {
-                      alert(e?.message || "更换失败");
-                    } finally {
-                      setPhoneLoading(false);
-                    }
-                  }}
-                >
-                  {phoneLoading ? "提交中..." : "确认更换"}
-                </Button>
-              </div>
-            </TabsContent>
           </Tabs>
+          <AlertDialog
+            open={pendingDeleteProductId !== null}
+            onOpenChange={(open) => {
+              if (!open) setPendingDeleteProductId(null);
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>确认删除该商品？</AlertDialogTitle>
+                <AlertDialogDescription>
+                  删除后将无法恢复，该操作会同步更新你的发布列表。
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>取消</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    if (pendingDeleteProductId === null) return;
+                    try {
+                      await api.deleteProduct?.(pendingDeleteProductId);
+                      setMyProducts((list) => list.filter((p) => p.id !== pendingDeleteProductId));
+                      await refreshStats();
+                      toast.success("删除成功");
+                    } catch (e: any) {
+                      toast.error(e?.message || "删除失败");
+                    } finally {
+                      setPendingDeleteProductId(null);
+                    }
+                  }}
+                >
+                  确认删除
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <AlertDialog
+            open={pendingDeleteAddressId !== null}
+            onOpenChange={(open) => {
+              if (!open) setPendingDeleteAddressId(null);
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>确认删除该地址？</AlertDialogTitle>
+                <AlertDialogDescription>
+                  删除后该地址不可恢复，请确认是否继续。
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>取消</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    if (pendingDeleteAddressId === null) return;
+                    try {
+                      await api.deleteAddress(pendingDeleteAddressId);
+                      await refreshAddresses();
+                      toast.success("删除成功");
+                    } catch (e: any) {
+                      toast.error(e?.message || "删除失败");
+                    } finally {
+                      setPendingDeleteAddressId(null);
+                    }
+                  }}
+                >
+                  确认删除
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </main>
       <Footer />
@@ -1016,7 +1123,7 @@ function OrderList({
                   <p className="text-sm font-medium text-foreground truncate">{order.product.title}</p>
                   <div className="flex items-center justify-between mt-2">
                     <span className="text-sm font-bold text-primary">¥{order.amount}</span>
-                    <span className="text-xs text-muted-foreground">{order.createdAt}</span>
+                    <span className="text-xs text-muted-foreground">{formatDateTime(order.createdAt)}</span>
                   </div>
                 </div>
               </div>

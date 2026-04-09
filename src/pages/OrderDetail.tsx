@@ -11,6 +11,7 @@ import { api } from "@/lib/api";
 import { getMe } from "@/lib/auth";
 import type { Order } from "@/types";
 import { resolveAssetUrl } from "@/lib/assets";
+import { toast } from "sonner";
 
 const statusSteps = ["待确认", "待交付", "已完成"];
 const statusMap: Record<string, string> = {
@@ -153,9 +154,9 @@ const OrderDetail = () => {
         timeline: response.timeline || []
       };
       setOrder(formattedOrder);
-      alert("操作成功");
+      toast.success("操作成功");
     } catch (error) {
-      alert("操作失败，请重试");
+      toast.error("操作失败，请重试");
     } finally {
       setUpdating(false);
     }
@@ -166,7 +167,7 @@ const OrderDetail = () => {
       <Header />
       <main className="flex-1 container py-6 max-w-2xl">
         {/* Back */}
-        <Link to="/orders" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
+        <Link to="/profile?tab=orders" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
           <ArrowLeft className="h-4 w-4" /> 返回订单列表
         </Link>
 
@@ -248,7 +249,18 @@ const OrderDetail = () => {
                 </Avatar>
                 <span className="font-medium text-foreground">{otherParty.nickname}</span>
               </div>
-              <Button variant="outline" size="sm" className="gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1"
+                onClick={() => {
+                  const targetUserId = Number(otherParty.id);
+                  if (!Number.isFinite(targetUserId) || targetUserId <= 0) return toast.error("对方用户信息异常");
+                  api.startConversation({ targetUserId, productId: Number(order.product.id) })
+                    .then((r) => navigate(`/chat/${r.id}`))
+                    .catch((e: any) => toast.error(e?.message || "发起聊天失败"));
+                }}
+              >
                 <MessageCircle className="h-4 w-4" /> 联系{isBuyer ? "卖家" : "买家"}
               </Button>
             </div>

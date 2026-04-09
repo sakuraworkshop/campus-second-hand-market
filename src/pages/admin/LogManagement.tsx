@@ -8,8 +8,10 @@ import {
 } from "@/components/ui/table";
 import { Search } from "lucide-react";
 import { api } from "@/lib/api";
+import { useUtc8Time } from "@/hooks/use-utc8-time";
 
 const LogManagement = () => {
+  const { formatDateTime } = useUtc8Time();
   const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState<string | "全部">("全部");
   const [moduleFilter, setModuleFilter] = useState<string | "全部">("全部");
@@ -112,7 +114,7 @@ const LogManagement = () => {
                     <TableCell>{log.module}</TableCell>
                     <TableCell className="max-w-[300px] truncate">{log.content}</TableCell>
                     <TableCell>{log.ip}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{new Date(log.created_at).toLocaleString()}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{formatDateTime(log.created_at)}</TableCell>
                   </TableRow>
                 ))
               )}

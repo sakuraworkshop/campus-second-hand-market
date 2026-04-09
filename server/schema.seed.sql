@@ -10,6 +10,9 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- 清理（按外键依赖顺序）
+TRUNCATE TABLE `chat_messages`;
+TRUNCATE TABLE `chat_conversation_members`;
+TRUNCATE TABLE `chat_conversations`;
 TRUNCATE TABLE `favorites`;
 TRUNCATE TABLE `evaluations`;
 TRUNCATE TABLE `complaints`;
@@ -155,4 +158,24 @@ VALUES
   (1, 3, NOW()),
   (2, 1, NOW()),
   (2, 2, NOW());
+
+-- 聊天（示例数据）
+INSERT INTO `chat_conversations` (
+  `id`, `user1_id`, `user2_id`, `product_id`,
+  `last_message_content`, `last_message_type`, `last_message_at`,
+  `created_at`, `updated_at`
+)
+VALUES
+  (1, 1, 2, 1, '可以便宜点吗？', 'text', NOW(), NOW(), NOW());
+
+INSERT INTO `chat_conversation_members` (`conversation_id`, `user_id`, `last_read_at`, `created_at`, `updated_at`)
+VALUES
+  (1, 1, NOW(), NOW(), NOW()),
+  (1, 2, NOW(), NOW(), NOW());
+
+INSERT INTO `chat_messages` (`conversation_id`, `sender_id`, `type`, `content`, `created_at`)
+VALUES
+  (1, 2, 'text', '你好，这个 iPad 还在吗？', DATE_SUB(NOW(), INTERVAL 10 MINUTE)),
+  (1, 1, 'text', '在的，成色很好。', DATE_SUB(NOW(), INTERVAL 8 MINUTE)),
+  (1, 2, 'text', '可以便宜点吗？', DATE_SUB(NOW(), INTERVAL 5 MINUTE));
 

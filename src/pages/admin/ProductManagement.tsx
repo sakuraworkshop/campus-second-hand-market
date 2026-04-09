@@ -19,6 +19,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { resolveAssetUrl } from "@/lib/assets";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { normalizeProductImages } from "@/lib/product-images";
+import { useUtc8Time } from "@/hooks/use-utc8-time";
 
 type ViewMode = "table" | "grid";
 type ProductStatus = "approved" | "down" | "deleted" | string;
@@ -57,6 +59,7 @@ function statusVariant(s: ProductStatus) {
 }
 
 const ProductManagement = () => {
+  const { formatDate } = useUtc8Time();
   const [view, setView] = useState<ViewMode>("table");
   const [keyword, setKeyword] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProductStatusFilter>("all");
@@ -295,14 +298,20 @@ const ProductManagement = () => {
                   <TableRow key={p.id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
+                        {(() => {
+                          const imgs = normalizeProductImages(p.images, p.image_url);
+                          const cover = imgs[0];
+                          return (
                         <img
                           src={
-                            resolveAssetUrl(p.image_url) ||
+                            resolveAssetUrl(cover) ||
                             "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=200&h=200&fit=crop"
                           }
                           alt=""
                           className="h-10 w-10 rounded-md object-cover"
                         />
+                          );
+                        })()}
                         <div className="min-w-0">
                           <div className="text-sm font-medium truncate max-w-[260px]">{p.title}</div>
                           <div className="text-xs text-muted-foreground truncate max-w-[260px]">
@@ -317,7 +326,7 @@ const ProductManagement = () => {
                       <Badge variant={statusVariant(p.status)}>{statusText(p.status)}</Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {(p.created_at || "").slice(0, 10)}
+                      {formatDate(p.created_at)}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
@@ -378,14 +387,20 @@ const ProductManagement = () => {
               {filtered.map((p) => (
                 <div key={p.id} className="rounded-lg border border-border bg-card overflow-hidden">
                   <div className="aspect-[16/9] bg-muted">
+                    {(() => {
+                      const imgs = normalizeProductImages(p.images, p.image_url);
+                      const cover = imgs[0];
+                      return (
                     <img
                       src={
-                        resolveAssetUrl(p.image_url) ||
+                        resolveAssetUrl(cover) ||
                         "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=800&h=450&fit=crop"
                       }
                       alt=""
                       className="h-full w-full object-cover"
                     />
+                      );
+                    })()}
                   </div>
                   <div className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-2">

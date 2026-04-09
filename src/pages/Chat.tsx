@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeft, Send, Image, MoreVertical } from "lucide-react";
 import { api } from "@/lib/api";
 import { resolveAssetUrl } from "@/lib/assets";
+import { getMe } from "@/lib/auth";
 
 interface ChatMessage {
   id: string;
@@ -40,6 +41,7 @@ interface Conversation {
 
 const Chat = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [inputValue, setInputValue] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversation, setConversation] = useState<Conversation | null>(null);
@@ -50,6 +52,11 @@ const Chat = () => {
   useEffect(() => {
     const fetchMessages = async () => {
       if (!id) return;
+      const user = getMe();
+      if (!user) {
+        navigate("/login", { replace: true });
+        return;
+      }
       
       setLoading(true);
       try {
@@ -69,7 +76,7 @@ const Chat = () => {
     };
 
     fetchMessages();
-  }, [id]);
+  }, [id, navigate]);
 
   useEffect(() => {
     if (scrollRef.current) {

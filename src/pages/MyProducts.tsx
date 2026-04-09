@@ -8,6 +8,8 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { getMe } from "@/lib/auth";
 import { resolveAssetUrl } from "@/lib/assets";
+import { normalizeProductImages } from "@/lib/product-images";
+import { useUtc8Time } from "@/hooks/use-utc8-time";
 
 const statusColorMap: Record<string, string> = {
   "已上架": "bg-success/10 text-success border-success/20",
@@ -16,6 +18,7 @@ const statusColorMap: Record<string, string> = {
 };
 
 const MyProducts = () => {
+  const { formatDateTime } = useUtc8Time();
   const [statusFilter, setStatusFilter] = useState("全部");
   const [myProducts, setMyProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -32,7 +35,7 @@ const MyProducts = () => {
           .map((p: any) => ({
             id: String(p.id),
             title: p.title,
-            images: p.images || (p.image_url ? [p.image_url] : []),
+            images: normalizeProductImages(p.images, p.image_url),
             price: Number(p.price || 0),
             views: p.views || 0,
             favorites: p.favorites || 0,
@@ -115,7 +118,7 @@ const MyProducts = () => {
                   <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                     <span className="flex items-center gap-0.5"><Eye className="h-3 w-3" />{product.views}</span>
                     <span className="flex items-center gap-0.5"><Heart className="h-3 w-3" />{product.favorites}</span>
-                    <span>{product.createdAt}</span>
+                    <span>{formatDateTime(product.createdAt)}</span>
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 shrink-0">

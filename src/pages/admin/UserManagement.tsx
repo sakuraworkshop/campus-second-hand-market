@@ -12,11 +12,12 @@ import { api } from "@/lib/api";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { resolveAssetUrl } from "@/lib/assets";
+import { useUtc8Time } from "@/hooks/use-utc8-time";
 
 interface AdminUser {
   id: number;
   nickname: string;
-  avatar: string;
+  avatar?: string | null;
   phone: string;
   role: "user" | "admin";
   status: "active" | "banned";
@@ -26,6 +27,7 @@ interface AdminUser {
 }
 
 const UserManagement = () => {
+  const { formatDateTime } = useUtc8Time();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -110,7 +112,7 @@ const UserManagement = () => {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{user.products} / {user.orders}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{user.createdAt}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{formatDateTime(user.createdAt)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button

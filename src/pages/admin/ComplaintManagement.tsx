@@ -12,8 +12,10 @@ import {
 } from "@/components/ui/dialog";
 import { Search, Check, X, Eye } from "lucide-react";
 import { api } from "@/lib/api";
+import { useUtc8Time } from "@/hooks/use-utc8-time";
 
 const ComplaintManagement = () => {
+  const { formatDateTime } = useUtc8Time();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | "全部">("全部");
   const [typeFilter, setTypeFilter] = useState<string | "全部">("全部");
@@ -150,7 +152,7 @@ const ComplaintManagement = () => {
                         {mapStatus(complaint.status)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{new Date(complaint.created_at).toLocaleString()}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{formatDateTime(complaint.created_at)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedComplaint(complaint)}>

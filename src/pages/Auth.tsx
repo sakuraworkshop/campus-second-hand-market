@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api";
 import { setMe, setToken } from "@/lib/auth";
+import { toast } from "sonner";
 
 type AuthTab = "login" | "register" | "forgot";
 
@@ -90,14 +91,14 @@ const Auth = () => {
       setMe({ id: resp.user.id, nickname: resp.user.nickname, role: resp.user.role });
       navigate(resp.user.role === "admin" ? "/admin" : "/", { replace: true });
     } catch (e: unknown) {
-      alert(getErrorMessage(e, "登录失败"));
+      toast.error(getErrorMessage(e, "登录失败"));
     } finally {
       setLoading(false);
     }
   };
 
   const onRegister = async () => {
-    if (regPassword !== confirmPassword) return alert("两次密码不一致");
+    if (regPassword !== confirmPassword) return toast.error("两次密码不一致");
     if (!nickname.trim() || !phone.trim() || !regCode.trim() || !regPassword) return;
     setLoading(true);
     try {
@@ -111,7 +112,7 @@ const Auth = () => {
       setMe({ id: resp.user.id, nickname: resp.user.nickname, role: resp.user.role });
       navigate("/", { replace: true });
     } catch (e: unknown) {
-      alert(getErrorMessage(e, "注册失败"));
+      toast.error(getErrorMessage(e, "注册失败"));
     } finally {
       setLoading(false);
     }
@@ -120,7 +121,7 @@ const Auth = () => {
   const onForgot = async () => {
     const v = forgotAccount.trim();
     if (!v) return;
-    if (forgotNewPassword !== forgotConfirmPassword) return alert("两次密码不一致");
+    if (forgotNewPassword !== forgotConfirmPassword) return toast.error("两次密码不一致");
     if (!forgotCode.trim() || !forgotNewPassword) return;
     setLoading(true);
     try {
@@ -129,7 +130,7 @@ const Auth = () => {
         code: forgotCode.trim(),
         newPassword: forgotNewPassword,
       });
-      alert("密码已重置，请使用新密码登录");
+      toast.success("密码已重置，请使用新密码登录");
       navigate("/login", { replace: true });
     } finally {
       setLoading(false);
@@ -157,6 +158,13 @@ const Auth = () => {
         </div>
 
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            返回首页
+          </Link>
           <Tabs value={tab} onValueChange={onTabChange}>
             <TabsList className="grid grid-cols-3 w-full">
               <TabsTrigger value="login">登录</TabsTrigger>
@@ -229,10 +237,10 @@ const Auth = () => {
                         setLoginSending(true);
                         try {
                           await api.authSendSmsCode({ phone: p, scene: "login" });
-                          alert("验证码已发送");
+                          toast.success("验证码已发送");
                           setLoginSendCoolDownUntil(Date.now() + 60 * 1000);
                         } catch (e: unknown) {
-                          alert(getErrorMessage(e, "发送失败"));
+                          toast.error(getErrorMessage(e, "发送失败"));
                         } finally {
                           setLoginSending(false);
                         }
@@ -319,10 +327,10 @@ const Auth = () => {
                       setRegSending(true);
                       try {
                         await api.authSendSmsCode({ phone: p, scene: "register" });
-                        alert("验证码已发送");
+                        toast.success("验证码已发送");
                         setRegSendCoolDownUntil(Date.now() + 60 * 1000);
                       } catch (e: unknown) {
-                        alert(getErrorMessage(e, "发送失败"));
+                        toast.error(getErrorMessage(e, "发送失败"));
                       } finally {
                         setRegSending(false);
                       }
@@ -417,10 +425,10 @@ const Auth = () => {
                       setForgotSending(true);
                       try {
                         await api.authSendSmsCode({ phone: p, scene: "reset_password" });
-                        alert("验证码已发送");
+                        toast.success("验证码已发送");
                         setForgotSendCoolDownUntil(Date.now() + 60 * 1000);
                       } catch (e: unknown) {
-                        alert(getErrorMessage(e, "发送失败"));
+                        toast.error(getErrorMessage(e, "发送失败"));
                       } finally {
                         setForgotSending(false);
                       }
@@ -480,10 +488,6 @@ const Auth = () => {
             </TabsContent>
           </Tabs>
         </div>
-
-        <p className="text-center text-xs text-muted-foreground mt-4">
-          登录即表示同意《用户协议》和《隐私政策》
-        </p>
       </div>
     </div>
   );

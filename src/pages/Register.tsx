@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { api } from "@/lib/api";
 import { setMe, setToken } from "@/lib/auth";
+import { toast } from "sonner";
 
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -29,7 +30,7 @@ const Register = () => {
   };
 
   const onRegister = async () => {
-    if (password !== confirmPassword) return alert("两次密码不一致");
+    if (password !== confirmPassword) return toast.error("两次密码不一致");
     if (!nickname.trim() || !phone.trim() || !code.trim() || !password) return;
     setLoading(true);
     try {
@@ -47,7 +48,7 @@ const Register = () => {
       });
       navigate("/", { replace: true });
     } catch (e: unknown) {
-      alert(getErrorMessage(e));
+      toast.error(getErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -98,10 +99,10 @@ const Register = () => {
                   setSending(true);
                   try {
                     await api.authSendSmsCode({ phone: p, scene: "register" });
-                    alert("验证码已发送");
+                    toast.success("验证码已发送");
                     setCoolDownUntil(Date.now() + 60 * 1000);
                   } catch (e: any) {
-                    alert(e?.message || "发送失败");
+                    toast.error(e?.message || "发送失败");
                   } finally {
                     setSending(false);
                   }

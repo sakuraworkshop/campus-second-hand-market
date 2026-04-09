@@ -8,12 +8,16 @@ import {
 } from "@/components/ui/table";
 import { Search, Eye } from "lucide-react";
 import { api } from "@/lib/api";
+import { useUtc8Time } from "@/hooks/use-utc8-time";
+import OrderDetailDialog from "@/components/OrderDetailDialog";
 
 const OrderManagement = () => {
+  const { formatDateTime } = useUtc8Time();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | "全部">("全部");
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [activeOrderId, setActiveOrderId] = useState<number | null>(null);
 
   const statusFilters = ["全部", "pending", "confirmed", "completed", "cancelled"];
 
@@ -112,9 +116,15 @@ const OrderManagement = () => {
                         {mapStatus(order.status)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{new Date(order.created_at).toLocaleString()}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{formatDateTime(order.created_at)}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setActiveOrderId(Number(order.id))}
+                        title="查看订单详情"
+                      >
                         <Eye className="h-4 w-4" />
                       </Button>
                     </TableCell>
@@ -125,6 +135,13 @@ const OrderManagement = () => {
           </Table>
         </CardContent>
       </Card>
+      <OrderDetailDialog
+        open={activeOrderId !== null}
+        orderId={activeOrderId}
+        onOpenChange={(next) => {
+          if (!next) setActiveOrderId(null);
+        }}
+      />
     </div>
   );
 };

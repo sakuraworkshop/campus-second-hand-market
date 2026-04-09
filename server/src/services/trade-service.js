@@ -156,7 +156,12 @@ export function buildTradeService({ db }) {
       }
       timeline.push({ content: timelineContent, time: new Date().toISOString() });
 
-      await db.update("orders", id, { status, timeline: JSON.stringify(timeline), updated_at: new Date().toISOString() });
+      const now = new Date().toISOString();
+      await db.update("orders", id, { status, timeline: JSON.stringify(timeline), updated_at: now });
+      // 交易完成：自动下架商品，避免继续出现在商品广场
+      if (status === "completed" && order.product_id) {
+        await db.update("products", order.product_id, { status: "down", updated_at: now });
+      }
       await Promise.all([
         db.insert("notifications", {
           id: `notif_${Date.now()}_1`,
@@ -166,7 +171,7 @@ export function buildTradeService({ db }) {
           content: timelineContent,
           is_read: false,
           order_id: order.id,
-          created_at: new Date().toISOString(),
+          created_at: now,
         }),
         db.insert("notifications", {
           id: `notif_${Date.now()}_2`,
@@ -176,7 +181,7 @@ export function buildTradeService({ db }) {
           content: timelineContent,
           is_read: false,
           order_id: order.id,
-          created_at: new Date().toISOString(),
+          created_at: now,
         }),
       ]);
       return { status: 200, body: { message: "ok" } };

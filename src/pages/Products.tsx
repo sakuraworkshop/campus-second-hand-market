@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SlidersHorizontal } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Product } from "@/types";
+import { normalizeProductImages } from "@/lib/product-images";
 
 const Products = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -39,7 +40,7 @@ const Products = () => {
           price: p.price,
           originalPrice: p.originalPrice,
           condition: p.condition || "轻微使用",
-          images: p.images || (p.image_url ? [p.image_url] : []),
+          images: normalizeProductImages(p.images, p.image_url),
           category: p.category || "其他",
           categoryId: p.category_id || "",
           seller: {
@@ -60,6 +61,7 @@ const Products = () => {
   }, []);
 
   const filteredProducts = products
+    .filter((p) => p.status === "已上架")
     .filter((p) => selectedCategory === "all" || p.category === selectedCategory)
     .filter((p) => conditionFilter === "all" || p.condition === conditionFilter)
     .sort((a, b) => {

@@ -19,6 +19,7 @@ export function createUserRouter(deps) {
   router.patch("/notifications/read-all", deps.authRequired, controller.readAllNotifications);
 
   router.get("/messages", deps.authRequired, controller.listConversations);
+  router.post("/messages/conversations", deps.authRequired, controller.startConversation);
   router.get("/messages/:id", deps.authRequired, controller.listMessages);
   router.post("/messages/:id", deps.authRequired, controller.sendMessage);
 

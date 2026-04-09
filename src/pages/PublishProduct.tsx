@@ -12,6 +12,7 @@ import { getMe } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { resolveAssetUrl } from "@/lib/assets";
+import { toast } from "sonner";
 
 const PublishProduct = () => {
   const [images, setImages] = useState<string[]>([]);
@@ -67,7 +68,7 @@ const PublishProduct = () => {
       setImages((prev) => [...prev, path || url].slice(0, 9));
     } catch (error) {
       console.error("图片上传失败:", error);
-      alert("图片上传失败，请检查 OSS 配置后重试");
+      toast.error("图片上传失败，请检查 OSS 配置后重试");
     } finally {
       setUploadingImage(false);
       e.target.value = "";
@@ -116,13 +117,13 @@ const PublishProduct = () => {
   const handleSubmit = async () => {
     // 表单验证
     if (!title || !categoryId || !condition || !price || !description || !campus) {
-      alert("请填写必填项");
+      toast.info("请填写必填项");
       return;
     }
 
     const user = getMe();
     if (!user) {
-      alert("请先登录");
+      toast.info("请先登录");
       navigate("/login");
       return;
     }
@@ -134,12 +135,13 @@ const PublishProduct = () => {
         description: description.trim(),
         price: Number(price),
         image_url: images[0] || "",
+        images,
         condition,
         category_id: categoryId,
         campus,
         owner_id: user.id
       });
-      alert("发布成功，已上架");
+      toast.success("发布成功，已上架");
       // 重置表单
       setTitle("");
       setCategoryId("");
@@ -150,7 +152,7 @@ const PublishProduct = () => {
       setDescription("");
       setImages([]);
     } catch (error) {
-      alert("发布失败，请重试");
+      toast.error("发布失败，请重试");
     } finally {
       setSubmitting(false);
     }

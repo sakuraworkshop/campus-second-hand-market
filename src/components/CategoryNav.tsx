@@ -18,15 +18,17 @@ const CategoryNav = () => {
   }, []);
 
   return (
-    <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
+    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
       {categories.map((cat) => (
         <Link
           key={cat.id}
           to={`/products?category=${cat.id}`}
-          className="flex flex-col items-center gap-1.5 p-3 rounded-lg hover:bg-secondary transition-colors group"
+          className="flex flex-col items-center gap-1.5 p-2 rounded-lg hover:bg-secondary transition-colors group"
         >
-          <span className="text-2xl group-hover:scale-110 transition-transform">{cat.icon}</span>
-          <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">{cat.name}</span>
+          <span className="text-xl group-hover:scale-110 transition-transform">{cat.icon}</span>
+          <span className="text-sm leading-5 break-keep text-center text-muted-foreground group-hover:text-foreground transition-colors">
+            {cat.name}
+          </span>
         </Link>
       ))}
     </div>

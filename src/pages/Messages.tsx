@@ -10,6 +10,8 @@ import { Search, MessageCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import { getMe } from "@/lib/auth";
 import { resolveAssetUrl } from "@/lib/assets";
+import { Button } from "@/components/ui/button";
+import { useUtc8Time } from "@/hooks/use-utc8-time";
 
 interface Conversation {
   id: string;
@@ -28,13 +30,14 @@ interface Conversation {
 }
 
 const Messages = () => {
+  const { formatDateTime } = useUtc8Time();
   const [searchQuery, setSearchQuery] = useState("");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(false);
+  const [user] = useState(() => getMe());
 
   useEffect(() => {
     const fetchMessages = async () => {
-      const user = getMe();
       if (!user) return;
       
       setLoading(true);
@@ -50,11 +53,30 @@ const Messages = () => {
     };
 
     fetchMessages();
-  }, []);
+  }, [user]);
 
   const filtered = conversations.filter((c) =>
     c.contact.nickname.includes(searchQuery) || c.lastMessage.includes(searchQuery)
   );
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Header />
+        <main className="flex-1 container py-6 max-w-2xl">
+          <h1 className="text-xl font-bold text-foreground mb-4">消息</h1>
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+            <MessageCircle className="h-12 w-12 mb-3" />
+            <p className="mb-4">登录后才能查看聊天消息</p>
+            <Button asChild>
+              <Link to="/login">去登录</Link>
+            </Button>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -119,7 +141,7 @@ const Messages = () => {
                         {conv.contact.nickname}
                       </span>
                       <span className="text-xs text-muted-foreground shrink-0 ml-2">
-                        {conv.lastTime}
+                        {formatDateTime(conv.lastTime)}
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground truncate mt-0.5">

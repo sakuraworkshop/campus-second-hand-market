@@ -235,7 +235,7 @@ export const api = {
       stats: { products: number; orders: number; favorites: number };
       products: any[];
       orders: any[];
-    }>(`/api/admin/users/${userId}`),
+    }>(`/api/admin/users/${userId}?limitProducts=10000&limitOrders=10000`),
 
   adminSetUserRole: (userId: number, role: "user" | "admin") =>
     request<{ message: string }>(`/api/admin/users/${userId}/role`, {
@@ -253,6 +253,12 @@ export const api = {
     request<{ message: string }>(`/api/admin/users/${userId}/avatar`, {
       method: "PATCH",
       body: JSON.stringify({ avatar }),
+    }),
+
+  adminSetUserPhone: (userId: number, phone: string) =>
+    request<{ message: string }>(`/api/admin/users/${userId}/phone`, {
+      method: "PATCH",
+      body: JSON.stringify({ phone }),
     }),
 
   adminResetUserPassword: (userId: number, newPassword: string) =>
@@ -602,6 +608,7 @@ export const api = {
     description?: string;
     price: number;
     image_url?: string;
+    images?: string[] | string;
     owner_id: number;
   }) =>
     request("/api/products", {
@@ -714,6 +721,12 @@ export const api = {
     }),
 
   // 消息系统
+  startConversation: (data: { targetUserId: number; productId?: number | null }) =>
+    request<{ id: string }>("/api/messages/conversations", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
   getMessages: () =>
     request<{
       conversations: Array<{
@@ -765,6 +778,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+
+  // Admin: 用户聊天记录审查
+  adminGetUserChats: (userId: number, limit = 50) => {
+    const q = new URLSearchParams();
+    q.set("limit", String(limit));
+    return request<{ list: any[] }>(`/api/admin/users/${userId}/chats?${q.toString()}`).then((r) => r.list);
+  },
 
   // AI 生成商品描述和价格估计
   generateProduct: (data: { description: string; images?: string[] }) =>

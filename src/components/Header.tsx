@@ -20,17 +20,24 @@ const Header = () => {
   }, [location.pathname]);
 
   useEffect(() => {
-    // 只有登录后才获取未读消息数量
-    if (getToken()) {
-      api.listNotifications().then((notifications) => {
-        // 计算未读消息数量
-        const count = notifications.filter(n => !n.is_read).length;
-        setUnreadCount(count);
-      }).catch(() => {
+    // 消息图标红点应基于会话未读数，而非系统通知未读数
+    if (!getToken()) {
+      setUnreadCount(0);
+      return;
+    }
+    api
+      .getMessages()
+      .then((res) => {
+        const total = (res.conversations || []).reduce(
+          (sum, c) => sum + (Number(c.unreadCount) > 0 ? Number(c.unreadCount) : 0),
+          0
+        );
+        setUnreadCount(total);
+      })
+      .catch(() => {
         setUnreadCount(0);
       });
-    }
-  }, []);
+  }, [location.pathname]);
 
   const navItems = [
     { path: "/", label: "首页" },
@@ -104,16 +111,18 @@ const Header = () => {
               <Heart className="h-4 w-4" />
             </Button>
           </Link>
-          <Link to="/messages">
-            <Button variant="ghost" size="icon" className="h-9 w-9 relative">
-              <MessageCircle className="h-4 w-4" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center">
-                  {unreadCount}
-                </span>
-              )}
-            </Button>
-          </Link>
+          {isLoggedIn && (
+            <Link to="/messages">
+              <Button variant="ghost" size="icon" className="h-9 w-9 relative">
+                <MessageCircle className="h-4 w-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </Button>
+            </Link>
+          )}
           <Link to="/profile">
             <Button variant="ghost" size="icon" className="h-9 w-9">
               <User className="h-4 w-4" />
@@ -232,18 +241,20 @@ const Header = () => {
                       我的收藏
                     </Button>
                   </Link>
-                  <Link to="/messages" onClick={() => setMobileMenuOpen(false)}>
-                    <Button variant="outline" className="w-full justify-start gap-2 relative">
-                      <MessageCircle className="h-4 w-4" />
-                      消息
-                      {unreadCount > 0 && (
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center">
-                          {unreadCount}
-                        </span>
-                      )}
-                    </Button>
-                  </Link>
-                  <Link to="/orders" onClick={() => setMobileMenuOpen(false)} className="col-span-2">
+                  {isLoggedIn && (
+                    <Link to="/messages" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="outline" className="w-full justify-start gap-2 relative">
+                        <MessageCircle className="h-4 w-4" />
+                        消息
+                        {unreadCount > 0 && (
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center">
+                            {unreadCount}
+                          </span>
+                        )}
+                      </Button>
+                    </Link>
+                  )}
+                  <Link to="/profile?tab=orders" onClick={() => setMobileMenuOpen(false)} className="col-span-2">
                     <Button variant="outline" className="w-full justify-start gap-2">
                       <ShoppingCart className="h-4 w-4" />
                       我的订单

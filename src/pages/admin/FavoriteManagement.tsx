@@ -8,8 +8,10 @@ import {
 } from "@/components/ui/table";
 import { Search } from "lucide-react";
 import { api } from "@/lib/api";
+import { useUtc8Time } from "@/hooks/use-utc8-time";
 
 const FavoriteManagement = () => {
+  const { formatDateTime } = useUtc8Time();
   const [search, setSearch] = useState("");
   const [productId, setProductId] = useState("");
   const [userId, setUserId] = useState("");
@@ -87,7 +89,7 @@ const FavoriteManagement = () => {
                     <TableCell>{favorite.user_name}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{favorite.product_title}</TableCell>
                     <TableCell className="text-primary">¥{favorite.product_price}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{new Date(favorite.created_at).toLocaleString()}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{formatDateTime(favorite.created_at)}</TableCell>
                   </TableRow>
                 ))
               )}

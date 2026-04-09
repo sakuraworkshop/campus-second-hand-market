@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { useUtc8Time } from "@/hooks/use-utc8-time";
 
 type PromptRow = {
   id: string;
@@ -34,6 +35,7 @@ type PromptRow = {
 };
 
 export default function AiCenter() {
+  const { formatDateTime } = useUtc8Time();
   const [list, setList] = useState<PromptRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState("");
@@ -184,7 +186,7 @@ export default function AiCenter() {
                       <Badge variant={row.enabled ? "default" : "secondary"}>{row.enabled ? "启用" : "禁用"}</Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {(row.updated_at || row.created_at || "").toString().slice(0, 19).replace("T", " ")}
+                      {formatDateTime(row.updated_at || row.created_at)}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">

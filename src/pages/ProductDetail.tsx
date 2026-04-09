@@ -5,18 +5,24 @@ import { Heart, MessageCircle, ShoppingCart, ChevronLeft, Eye, MapPin, Clock, Ta
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { isFavorited, toggleFavorite } from "@/lib/favorites";
 import { api } from "@/lib/api";
 import type { Product } from "@/types";
 import { getMe } from "@/lib/auth";
 import { resolveAssetUrl } from "@/lib/assets";
+import { normalizeProductImages } from "@/lib/product-images";
+import { toast } from "sonner";
+import { useUtc8Time } from "@/hooks/use-utc8-time";
 
 const ProductDetail = () => {
+  const { formatDateTime } = useUtc8Time();
   const { id } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentImage, setCurrentImage] = useState(0);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [isFav, setIsFav] = useState(() => (id ? isFavorited(id) : false));
 
   useEffect(() => {
@@ -33,7 +39,7 @@ const ProductDetail = () => {
           price: data.price,
           originalPrice: data.originalPrice,
           condition: data.condition || "轻微使用",
-          images: data.images || (data.image_url ? [data.image_url] : []),
+          images: normalizeProductImages(data.images, data.image_url),
           category: data.category || "其他",
           categoryId: data.category_id || "",
           seller: {
@@ -75,7 +81,7 @@ const ProductDetail = () => {
     if (!product) return;
     const user = getMe();
     if (!user) {
-      alert("请先登录");
+      toast.info("请先登录");
       return;
     }
     
@@ -88,7 +94,7 @@ const ProductDetail = () => {
       const next = toggleFavorite(product.id);
       setIsFav(next);
     } catch (error) {
-      alert("操作失败");
+      toast.error("操作失败");
     }
   };
 
@@ -96,18 +102,24 @@ const ProductDetail = () => {
     if (!product) return;
     const user = getMe();
     if (!user) {
-      alert("请先登录");
+      toast.info("请先登录");
       return;
     }
-    // 简化处理，直接跳转到消息页面
-    navigate("/messages");
+    const targetUserId = Number(product.seller.id);
+    if (!Number.isFinite(targetUserId) || targetUserId <= 0) {
+      toast.error("卖家信息异常，无法发起聊天");
+      return;
+    }
+    api.startConversation({ targetUserId, productId: Number(product.id) })
+      .then((r) => navigate(`/chat/${r.id}`))
+      .catch((e: any) => toast.error(e?.message || "发起聊天失败"));
   };
 
   const handleBuyNow = () => {
     if (!product) return;
     const user = getMe();
     if (!user) {
-      alert("请先登录");
+      toast.info("请先登录");
       return;
     }
 
@@ -116,7 +128,7 @@ const ProductDetail = () => {
       .then(async (addresses) => {
         const defaultAddress = addresses.find((a: any) => a.isDefault) || addresses[0];
         if (!defaultAddress) {
-          alert("请先新增收货地址");
+          toast.info("请先新增收货地址");
           navigate("/addresses");
           return;
         }
@@ -133,11 +145,11 @@ const ProductDetail = () => {
         if (orderId) {
           navigate(`/order/${orderId}`);
         } else {
-          navigate("/orders");
+          navigate("/profile?tab=orders");
         }
       })
       .catch((e: any) => {
-        alert(e?.message || "下单失败，请重试");
+        toast.error(e?.message || "下单失败，请重试");
       });
   };
 
@@ -158,7 +170,11 @@ const ProductDetail = () => {
           <div className="grid md:grid-cols-2 gap-6">
             {/* Images */}
             <div className="space-y-3">
-              <div className="aspect-square rounded-xl overflow-hidden bg-muted">
+              <div
+                className="aspect-square rounded-xl overflow-hidden bg-muted cursor-zoom-in"
+                onClick={() => setPreviewOpen(true)}
+                title="点击放大查看"
+              >
                 <img src={resolveAssetUrl(product.images[currentImage])} alt={product.title} className="h-full w-full object-cover" />
               </div>
               {product.images.length > 1 && (
@@ -166,8 +182,12 @@ const ProductDetail = () => {
                   {product.images.map((img, i) => (
                     <button
                       key={i}
-                      onClick={() => setCurrentImage(i)}
+                      onClick={() => {
+                        setCurrentImage(i);
+                        setPreviewOpen(true);
+                      }}
                       className={`h-16 w-16 rounded-md overflow-hidden border-2 transition-colors ${i === currentImage ? "border-primary" : "border-transparent"}`}
+                      title="点击放大查看"
                     >
                       <img src={resolveAssetUrl(img)} alt="" className="h-full w-full object-cover" />
                     </button>
@@ -195,7 +215,7 @@ const ProductDetail = () => {
               <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1"><Tag className="h-3.5 w-3.5" />{product.condition}</span>
                 <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{product.campus}</span>
-                <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{product.createdAt}</span>
+                <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{formatDateTime(product.createdAt)}</span>
                 <span className="flex items-center gap-1"><Eye className="h-3.5 w-3.5" />{product.views} 浏览</span>
                 <span className="flex items-center gap-1"><Heart className="h-3.5 w-3.5" />{product.favorites} 收藏</span>
               </div>
@@ -241,6 +261,31 @@ const ProductDetail = () => {
         </div>
       </main>
       <Footer />
+
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-5xl w-[95vw] p-2 sm:p-4">
+          <div className="w-full flex items-center justify-center bg-muted rounded-md overflow-hidden max-h-[80vh]">
+            <img
+              src={resolveAssetUrl(product.images[currentImage])}
+              alt={product.title}
+              className="max-h-[80vh] w-auto object-contain"
+            />
+          </div>
+          {product.images.length > 1 && (
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+              {product.images.map((img, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentImage(i)}
+                  className={`h-14 w-14 rounded-md overflow-hidden border-2 shrink-0 ${i === currentImage ? "border-primary" : "border-transparent"}`}
+                >
+                  <img src={resolveAssetUrl(img)} alt="" className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

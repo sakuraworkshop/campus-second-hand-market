@@ -7,6 +7,7 @@ import { Phone } from "lucide-react";
 import { useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const ChangePhone = () => {
   const navigate = useNavigate();
@@ -61,10 +62,10 @@ const ChangePhone = () => {
                     setSending(true);
                     try {
                       await api.sendChangePhoneCode({ newPhone: p });
-                      alert("验证码已发送");
+                      toast.success("验证码已发送");
                       setCoolDownUntil(Date.now() + 60 * 1000);
                     } catch (e: any) {
-                      alert(e?.message || "发送失败");
+                      toast.error(e?.message || "发送失败");
                     } finally {
                       setSending(false);
                     }
@@ -82,10 +83,10 @@ const ChangePhone = () => {
                 setLoading(true);
                 try {
                   await api.confirmChangePhone({ newPhone: newPhone.trim(), code: code.trim() });
-                  alert("手机号已更新");
+                  toast.success("手机号已更新");
                   navigate("/profile", { replace: true });
                 } catch (e: any) {
-                  alert(e?.message || "更换失败");
+                  toast.error(e?.message || "更换失败");
                 } finally {
                   setLoading(false);
                 }

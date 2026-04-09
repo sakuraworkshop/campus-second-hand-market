@@ -5,7 +5,7 @@ export function buildProductService({ db }) {
         SELECT p.*, u.name as owner_name
         FROM products p
         LEFT JOIN users u ON p.owner_id = u.id
-        WHERE p.status <> 'deleted'
+        WHERE p.status = 'approved'
         ORDER BY p.created_at DESC
       `;
       return db.query(sql);
@@ -23,17 +23,44 @@ export function buildProductService({ db }) {
     },
 
     async createProduct(ownerId, payload) {
-      const { title, description, price, image_url, condition, category_id, campus } = payload ?? {};
+      const { title, description, price, image_url, images, condition, category_id, campus } = payload ?? {};
       if (!title || price == null || !condition || !category_id || !campus) {
         return { status: 400, body: { message: "title, price, condition, category_id, campus 为必填" } };
       }
+
+      const normalizeImages = (raw, fallback) => {
+        if (Array.isArray(raw)) {
+          const arr = raw.map((x) => String(x || "").trim()).filter(Boolean);
+          return arr.length > 0 ? arr : (fallback ? [String(fallback)] : []);
+        }
+        if (typeof raw === "string") {
+          const s = raw.trim();
+          if (!s) return fallback ? [String(fallback)] : [];
+          if (s.startsWith("[")) {
+            try {
+              const parsed = JSON.parse(s);
+              if (Array.isArray(parsed)) {
+                const arr = parsed.map((x) => String(x || "").trim()).filter(Boolean);
+                if (arr.length > 0) return arr;
+              }
+            } catch {
+              // ignore
+            }
+          }
+          return [s];
+        }
+        return fallback ? [String(fallback)] : [];
+      };
+
+      const imageList = normalizeImages(images, image_url);
+      const firstImage = imageList[0] || image_url || "";
 
       const productData = {
         title,
         description: description ?? "",
         price,
-        image_url: image_url ?? "",
-        images: image_url ? JSON.stringify([image_url]) : null,
+        image_url: firstImage,
+        images: imageList.length > 0 ? JSON.stringify(imageList) : null,
         condition,
         category_id,
         campus,

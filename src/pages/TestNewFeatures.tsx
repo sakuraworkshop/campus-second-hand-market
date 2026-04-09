@@ -6,8 +6,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import { getToken } from "@/lib/auth";
+import { toast } from "sonner";
+import { useUtc8Time } from "@/hooks/use-utc8-time";
 
 const TestNewFeatures = () => {
+  const { formatDateTime } = useUtc8Time();
   const [user, setUser] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
@@ -55,11 +58,11 @@ const TestNewFeatures = () => {
         content: "商品质量很好，卖家服务态度也很棒！",
         target_type: "seller",
       });
-      alert(response.message);
+      toast.success(response.message);
       loadOrders();
     } catch (error) {
       console.error("Failed to create evaluation:", error);
-      alert("评价失败，请重试");
+      toast.error("评价失败，请重试");
     } finally {
       setLoading(false);
     }
@@ -74,10 +77,10 @@ const TestNewFeatures = () => {
         content: "商品与描述不符",
         evidence: [],
       });
-      alert(response.message);
+      toast.success(response.message);
     } catch (error) {
       console.error("Failed to create complaint:", error);
-      alert("投诉失败，请重试");
+      toast.error("投诉失败，请重试");
     } finally {
       setLoading(false);
     }
@@ -131,7 +134,7 @@ const TestNewFeatures = () => {
                   <div key={notification.id} className={`p-3 rounded-md ${notification.is_read ? "bg-muted/30" : "bg-primary/10"}`}>
                     <h3 className="font-medium">{notification.title}</h3>
                     <p className="text-sm text-muted-foreground mt-1">{notification.content}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{new Date(notification.created_at).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{formatDateTime(notification.created_at)}</p>
                     {!notification.is_read && (
                       <Button 
                         onClick={() => handleMarkAsRead(notification.id)} 
