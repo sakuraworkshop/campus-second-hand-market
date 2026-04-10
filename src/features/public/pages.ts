@@ -15,7 +15,6 @@ export { default as ChatPage } from "@/pages/Chat";
 export { default as OrdersPage } from "@/pages/Orders";
 export { default as OrderDetailPage } from "@/pages/OrderDetail";
 export { default as OrderEvaluatePage } from "@/pages/OrderEvaluate";
-export { default as TestNewFeaturesPage } from "@/pages/TestNewFeatures";
 export { default as NotFoundPage } from "@/pages/NotFound";
 export { default as AnnouncementsPage } from "@/pages/Announcements";
 export { default as ForgotPasswordPage } from "@/pages/Auth";

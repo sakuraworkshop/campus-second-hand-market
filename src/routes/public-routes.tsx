@@ -21,7 +21,6 @@ import {
   ProfilePage,
   PublishProductPage,
   RegisterPage,
-  TestNewFeaturesPage,
 } from "@/features/public/pages";
 
 export const publicRoutes = (
@@ -45,7 +44,6 @@ export const publicRoutes = (
     <Route path="/orders" element={<RequireAuth><OrdersPage /></RequireAuth>} />
     <Route path="/order/:id" element={<RequireAuth><OrderDetailPage /></RequireAuth>} />
     <Route path="/order/:id/evaluate" element={<RequireAuth><OrderEvaluatePage /></RequireAuth>} />
-    <Route path="/test-new-features" element={<TestNewFeaturesPage />} />
     <Route path="*" element={<NotFoundPage />} />
   </>
 );
