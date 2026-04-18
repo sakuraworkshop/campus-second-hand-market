@@ -28,7 +28,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ lower(github.repository_owner) }}/${{ lower(github.repository) }}:latest
+          tags: ghcr.io/${{ github.repository_owner }}/${{ github.repository }}:latest
 
       - name: 安装 Sealos CLI
         run: |
@@ -41,7 +41,7 @@ jobs:
 
       - name: 部署到 Sealos
         run: |
-          sealos run ghcr.io/${{ lower(github.repository_owner) }}/${{ lower(github.repository) }}:latest \
+          sealos run ghcr.io/${{ github.repository_owner }}/${{ github.repository }}:latest \
             --name my-fullstack-app \
             --port 4000:4000 \
             --env NODE_ENV=production \
