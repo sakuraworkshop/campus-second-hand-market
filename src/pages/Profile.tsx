@@ -860,6 +860,7 @@ const Profile = () => {
                 statusText={orderStatusText}
                 statusVariant={orderStatusVariant}
                 onOpen={(id) => navigate(`/order/${id}`)}
+                formatDateTime={formatDateTime}
               />
             </TabsContent>
 
@@ -1115,12 +1116,14 @@ function OrderList({
   statusText,
   statusVariant,
   onOpen,
+  formatDateTime,
 }: {
   orders: Order[];
   loading: boolean;
   statusText: Record<string, string>;
   statusVariant: (s: string) => any;
   onOpen: (id: string) => void;
+  formatDateTime: (date: any) => string;
 }) {
   if (loading) {
     return <div className="text-center py-16 text-muted-foreground">加载中...</div>;
